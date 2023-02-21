@@ -2,7 +2,7 @@
 
 Please include a summary of the changes and the related issue. Please also include relevant motivation and context. List any dependencies that are required for this change.
 
-Fixes # (issue)
+Fixes # [CN-](https://jpt4.atlassian.net/browse/CN-)
 
 # How Has This Been Tested?
 
