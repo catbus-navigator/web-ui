@@ -11,6 +11,9 @@ This project is being created for Clemson's CPSC-4720 class.
 - Make sure you have [Node.js](https://nodejs.org) installed
 - Enter the my-app directory
 - Run `npm i` or `npm install`
+- Create your `.env` file in the my-app directory
+  - `.env.template` contains a template for the file
+  - If you add variables to `.env` run `npx env-template` to update the template
 
 **To run the React App:**
 - Enter the my-app directory
