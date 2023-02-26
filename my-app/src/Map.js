@@ -18,7 +18,29 @@ export default function Map() {
       center: [lng, lat],
       zoom: zoom
     });
-  });
+
+    // Add navigation control to the map
+    map.current.addControl(new mapboxgl.NavigationControl({
+        showZoom: true,
+        showCompass: false,
+        showCurrentLocation: true, // this enables the "Show my location" icon
+        positionOptions: {
+            enableHighAccuracy: true // enable high accuracy for better location accuracy
+        },
+        visualizePitch: true
+    }));
+
+      // Add geolocate control to the map
+      map.current.addControl(new mapboxgl.GeolocateControl({
+          positionOptions: {
+              enableHighAccuracy: true // enable high accuracy for better location accuracy
+          },
+          fitBoundsOptions: {
+              maxZoom: 15 // set a maximum zoom level when fitting the bounds
+          }
+      }));
+
+  }, []);
 
   return (
     <div className='Map'>
