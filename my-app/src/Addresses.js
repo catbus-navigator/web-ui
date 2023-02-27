@@ -1,7 +1,11 @@
 import React, { useRef, useEffect, useState} from 'react';
 import mapboxgl from '!mapbox-gl'; // eslint-disable-line import/no-webpack-loader-syntax
-
-mapboxgl.accessToken = process.env.REACT_APP_MAPBOX_KEY
+import { AddressAutofill } from '@mapbox/search-js-react';
+ 
+// TO MAKE THE MAP APPEAR YOU MUST
+// ADD YOUR ACCESS TOKEN FROM
+// https://account.mapbox.com
+const accessToken = process.env.REACT_APP_MAPBOX_KEY;
 
 export default function Addresses() {
 
@@ -16,10 +20,12 @@ export default function Addresses() {
   return (
     <>
     <div style={{marginRight: "75%"}}>
-    <div style={{alignItems: "center", flexDirection: "column"}}>
+    <form style={{alignItems: "center", flexDirection: "column"}}>
       <label htmlFor="startingAddress">Starting Address:   </label>
-      <input type="text" id="startingAddress" name="startingAddress"></input>
-    </div>
+      <AddressAutofill accessToken={accessToken}>
+      <input id="startingAddress" name="startingAddress" autoComplete="shipping address-line1"></input>
+      </AddressAutofill>
+    </form>
     <div style={{alignItems: "center", flexDirection: "column"}}>
         <label htmlFor="endingAddress">Ending Address:   </label>
         <input type="text" id="endingAddress" name="endingAddress"></input>
