@@ -10,7 +10,9 @@ export default function Map() {
   const [lat, setLat] = useState(34.6767);
   const [zoom, setZoom] = useState(14);
 
-  useEffect(() => {
+    const [busStops, setBusStops] = useState([])
+
+    useEffect(() => {
     if (map.current) return; // initialize map only once
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
@@ -41,6 +43,43 @@ export default function Map() {
       }));
 
   }, []);
+
+    // Effect hook to fetch the bus routes data from the API
+    useEffect(() => {
+        fetch('https://api-my.app.clemson.edu/api/v0/map/bus/routes')
+            .then(response => response.json())
+            .then(data => {
+                setBusStops(data.stops)
+                console.log(data.stops)
+            })
+            .catch(error => console.log(error));
+    }, []);
+
+    // Effect hook to update bustops on the boxmap
+    useEffect ( () => {
+
+        Object.entries(busStops).map(([key, value]) => {
+
+            const busCoordinates = [value.coordinate.lng, value.coordinate.lat];
+
+            // Define the marker styling
+            const markerEl = document.createElement('div');
+            markerEl.style.background = 'red';
+            markerEl.style.border = '4px solid black';
+            markerEl.style.width = '10px';
+            markerEl.style.height = '10px';
+            markerEl.style.borderRadius = '50%';
+
+            // Create a new marker with the custom styling
+            const marker = new mapboxgl.Marker({
+                element: markerEl,
+                anchor: 'center'
+            })
+                .setLngLat(busCoordinates)
+                .addTo(map.current);
+        })
+
+    }, [busStops])
 
   return (
     <div className='Map'>
