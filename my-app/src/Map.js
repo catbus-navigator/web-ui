@@ -9,13 +9,28 @@ export default function Map() {
   const [lng, setLng] = useState(-82.8354);
   const [lat, setLat] = useState(34.6767);
   const [zoom, setZoom] = useState(14);
-
     const [busStops, setBusStops] = useState([])
     const [busRoutes, setBusRoutes] = useState([])
 
 
 
     const [busRoutesMap, setBusRoutesMap] = useState({})
+
+    var busRoute = [
+        [-122.4194, 37.7749],
+        [-122.4294, 37.7649],
+        [-122.4394, 37.7549],
+        [-122.4494, 37.7449]
+    ];
+
+    var geojson = {
+        type: 'Feature',
+        properties: {},
+        geometry: {
+            type: 'LineString',
+            coordinates: busRoute
+        }
+    };
 
     useEffect(() => {
     if (map.current) return; // initialize map only once
@@ -149,6 +164,22 @@ export default function Map() {
         })
 
     }, [busStops])
+
+    //Routes
+    useEffect(() => {
+        map.addLayer({
+            id: 'bus-route',
+            type: 'line',
+            source: {
+                type: 'geojson',
+                data: geojson
+            },
+            paint: {
+                'line-color': '#f00', // Replace with your desired line color
+                'line-width': 5 // Replace with your desired line width
+            }
+        });
+    });
 
   return (
     <div className='Map'>
