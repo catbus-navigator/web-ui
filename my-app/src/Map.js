@@ -11,6 +11,11 @@ export default function Map() {
   const [zoom, setZoom] = useState(14);
 
     const [busStops, setBusStops] = useState([])
+    const [busRoutes, setBusRoutes] = useState([])
+
+
+
+    const [busRoutesMap, setBusRoutesMap] = useState({})
 
     useEffect(() => {
     if (map.current) return; // initialize map only once
@@ -50,7 +55,17 @@ export default function Map() {
             .then(response => response.json())
             .then(data => {
                 setBusStops(data.stops)
-                console.log(data.stops)
+                setBusRoutes(data.routes)
+
+
+                let map = {};
+                Object.entries(data.routes).map(([key, value]) => {
+                    value.stops.forEach( stop => {
+                        map[stop] = value;
+                    })
+                })
+
+                setBusRoutesMap(map);
             })
             .catch(error => console.log(error));
     }, []);
@@ -86,34 +101,38 @@ export default function Map() {
             markerEl.addEventListener('click', function () {
 
 
-                let description = `<h3>${value.name}</h3>`;
+                const routeName = busRoutesMap[key] != undefined ? busRoutesMap[key].name : '';
+
+                let description = `<h3>${value.name}</h3><hr/><b> ${routeName}</b>`;
 
                 fetch('https://api-my.app.clemson.edu/api/v0/map/bus/arrivals/'+key)
                     .then(response => response.json())
                     .then(data => {
 
                         let position;
-                        Object.entries(data).map(([key, value]) => {
-                            console.log("key: ",key)
-                            position = value[0];
+                        Object.entries(data).map(([dataKey, dataValue]) => {
+
+                            position = dataValue[0];
+
+                            if (position) {
+
+                                // get the current time
+                                const currentTime = new Date();
+
+                                // parse the arrival time from the API response
+                                const arrivalTime = new Date(position["arrival"]);
+
+                                // calculate the difference between the arrival time and the current time
+                                const timeDiff = arrivalTime.getTime() - currentTime.getTime();
+
+                                // convert the time difference from milliseconds to minutes
+                                const timeDiffInMinutes = Math.round(timeDiff / 1000 / 60);
+
+                                description += `<hr/><div> : Expected Time = ${timeDiffInMinutes} minutes<div>`
+                            }
                         })
 
-                        if (position) {
 
-                            // get the current time
-                            const currentTime = new Date();
-
-                            // parse the arrival time from the API response
-                            const arrivalTime = new Date(position["arrival"]);
-
-                            // calculate the difference between the arrival time and the current time
-                            const timeDiff = arrivalTime.getTime() - currentTime.getTime();
-
-                            // convert the time difference from milliseconds to minutes
-                            const timeDiffInMinutes = Math.round(timeDiff / 1000 / 60);
-
-                            description += `<hr/><div>Estimated Arrival Time : ${timeDiffInMinutes} mins<div>`
-                        }
 
                         // Change the cursor style as a UI indicator.
                         map.current.getCanvas().style.cursor = 'pointer';
