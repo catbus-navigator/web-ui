@@ -166,23 +166,50 @@ export default function Map() {
 
     useEffect(() => {
         //Routes
-        map.current.on('load', () => {
-            map.current.addLayer({
-                id: 'bus-route',
-                type: 'line',
-                source: {
-                    type: 'geojson',
-                    data: geojson
-                },
-                paint: {
-                    'line-color': '#f00', // Replace with your desired line color
-                    'line-width': 5 // Replace with your desired line width
-                }
-            });
-        });
-    }, [])
 
-  return (
+        const addRoutesToMap = () => {
+            Object.entries(busRoutes).forEach(([key, value]) => {
+                if (map.current.getLayer(key)) {
+                    map.current.removeLayer(key);
+                }
+
+                if (map.current.getSource(key)) {
+                    map.current.removeSource(key);
+                }
+
+                map.current.addSource(key, {
+                    type: 'geojson',
+                    data: {
+                        type: 'Feature',
+                        properties: {},
+                        geometry: {
+                            type: 'LineString',
+                            coordinates: value.polyline
+                        }
+                    }
+                });
+
+                map.current.addLayer({
+                    id: key,
+                    type: 'line',
+                    source: key,
+                    layout: {
+                        'line-join': 'round',
+                        'line-cap': 'round'
+                    },
+                    paint: {
+                        'line-color': '#3887be',
+                        'line-width': 5
+                    }
+                });
+            });
+        };
+
+        map.current.on('load', addRoutesToMap);
+
+    }, [busRoutes]);
+
+    return (
     <div className='Map'>
     <div ref={mapContainer} className="map-container" />
     </div>
