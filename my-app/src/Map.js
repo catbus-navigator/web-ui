@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import mapboxgl from '!mapbox-gl'; // eslint-disable-line import/no-webpack-loader-syntax
+import { AddressAutofill } from '@mapbox/search-js-react';
 
 mapboxgl.accessToken = process.env.REACT_APP_MAPBOX_KEY
 
@@ -55,9 +56,8 @@ export default function Map() {
             .then(response => response.json())
             .then(data => {
                 setBusStops(data.stops)
+                //console.log(data.stops)
                 setBusRoutes(data.routes)
-
-
                 let map = {};
                 Object.entries(data.routes).map(([key, value]) => {
                     value.stops.forEach( stop => {
@@ -66,6 +66,7 @@ export default function Map() {
                 })
 
                 setBusRoutesMap(map);
+
             })
             .catch(error => console.log(error));
     }, []);
@@ -150,8 +151,77 @@ export default function Map() {
 
     }, [busStops])
 
+  function onCalculateHandler(){
+    const startingAddressArray = document.getElementById('startingAddress').value.split(" ")
+    const endingAddressArray = document.getElementById('endingAddress').value.split(" ")
+    fetch('https://api.mapbox.com/geocoding/v5/mapbox.places/'+ startingAddressArray[0] + '%20'+ startingAddressArray[1] + '%20'+ startingAddressArray[2] + '%20'+ startingAddressArray[3] + '.json?proximity=-82.83673382875219%2C34.676993908723304&access_token='+mapboxgl.accessToken)
+    .then(response => response.json())
+    .then(data => {
+      fetch('https://api.mapbox.com/geocoding/v5/mapbox.places/'+ endingAddressArray[0] + '%20'+ endingAddressArray[1] + '%20'+ endingAddressArray[2] + '%20'+ endingAddressArray[3] + '.json?proximity=-82.83673382875219%2C34.676993908723304&access_token='+mapboxgl.accessToken)
+      .then(response2 => response2.json())
+      .then(data2 => {
+        fetch('https://api.mapbox.com/directions/v5/mapbox/walking/'+ data.features[0].center[0] +'%2C' + data.features[0].center[1] +'%3B' + data2.features[0].center[0] + '%2C'+ data2.features[0].center[1] + '?alternatives=false&continue_straight=true&geometries=geojson&language=en&overview=simplified&steps=true&access_token='+mapboxgl.accessToken)
+            .then(response => response.json())
+            .then(data3 => {
+                if (map.current.getSource('route')){
+                  map.current.getSource('route').setData({
+                  'type': 'Feature',
+                  'properties': {},
+                  'geometry': {
+                  'type': 'LineString',
+                  'coordinates': data3.routes[0].geometry.coordinates
+                  }
+                  })
+                }
+                else {
+                map.current.addSource('route', {
+                  'type': 'geojson',
+                  'data': {
+                  'type': 'Feature',
+                  'properties': {},
+                  'geometry': {
+                  'type': 'LineString',
+                  'coordinates': data3.routes[0].geometry.coordinates
+                  }
+                  }
+                });
+                map.current.addLayer({
+                  'id': 'route',
+                  'type': 'line',
+                  'source': 'route',
+                  'layout': {
+                  'line-join': 'round',
+                  'line-cap': 'round'
+                  },
+                  'paint': {
+                  'line-color': '#888',
+                  'line-width': 8
+                  }
+                  });
+              }
+            })
+            .catch(error => console.log(error));
+      })
+    })
+  }
+
   return (
     <div className='Map'>
+    <div style={{marginRight: "75%"}}>
+    <form style={{alignItems: "center", flexDirection: "column"}}>
+      <label htmlFor="startingAddress">Starting Address:   </label>
+      <AddressAutofill accessToken={mapboxgl.accessToken}>
+      <input id="startingAddress" name="startingAddress" autoComplete="shipping address-line1"></input>
+      </AddressAutofill>
+    </form>
+    <form style={{alignItems: "center", flexDirection: "column"}}>
+        <label htmlFor="endingAddress">Ending Address:   </label>
+        <AddressAutofill accessToken={mapboxgl.accessToken}>
+        <input type="text" id="endingAddress" name="endingAddress"></input>
+        </AddressAutofill>
+    </form>
+    <input type="button" value="Get Bus Directions!" onClick={onCalculateHandler}/>
+    </div>
     <div ref={mapContainer} className="map-container" />
     </div>
   );
