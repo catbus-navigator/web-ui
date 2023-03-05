@@ -58,6 +58,11 @@ export default function Map() {
     // Effect hook to update bustops on the boxmap
     useEffect ( () => {
 
+        const popup = new mapboxgl.Popup({
+            closeButton: true,
+            closeOnClick: false
+        })
+
         Object.entries(busStops).map(([key, value]) => {
 
             const busCoordinates = [value.coordinate.lng, value.coordinate.lat];
@@ -77,6 +82,51 @@ export default function Map() {
             })
                 .setLngLat(busCoordinates)
                 .addTo(map.current);
+
+            markerEl.addEventListener('click', function () {
+
+
+                let description = `<h3>${value.name}</h3>`;
+
+                fetch('https://api-my.app.clemson.edu/api/v0/map/bus/arrivals/'+key)
+                    .then(response => response.json())
+                    .then(data => {
+
+                        let position;
+                        Object.entries(data).map(([key, value]) => {
+                            console.log("key: ",key)
+                            position = value[0];
+                        })
+
+                        if (position) {
+
+                            // get the current time
+                            const currentTime = new Date();
+
+                            // parse the arrival time from the API response
+                            const arrivalTime = new Date(position["arrival"]);
+
+                            // calculate the difference between the arrival time and the current time
+                            const timeDiff = arrivalTime.getTime() - currentTime.getTime();
+
+                            // convert the time difference from milliseconds to minutes
+                            const timeDiffInMinutes = Math.round(timeDiff / 1000 / 60);
+
+                            description += `<hr/><div>Estimated Arrival Time : ${timeDiffInMinutes} mins<div>`
+                        }
+
+                        // Change the cursor style as a UI indicator.
+                        map.current.getCanvas().style.cursor = 'pointer';
+
+                        // Populate the popup and set its coordinates
+                        // based on the feature found.
+                        popup.setLngLat(busCoordinates).setHTML(description).addTo(map.current);
+
+                    })
+                    .catch(error => console.log(error));
+
+            });
+
         })
 
     }, [busStops])
