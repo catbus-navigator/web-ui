@@ -1,10 +1,34 @@
 import React, { useRef, useEffect, useState } from 'react';
 import mapboxgl from '!mapbox-gl'; // eslint-disable-line import/no-webpack-loader-syntax
 import { AddressAutofill } from '@mapbox/search-js-react';
+import moment from 'moment';
+moment().format();
 
 mapboxgl.accessToken = process.env.REACT_APP_MAPBOX_KEY
 
-export default function Map() {
+// takes in a route ID, starting bus stop ID, and ending bus stop ID, and calculates the time to travel between them
+// assumes the next bus available is taken
+// Uses the catbus.ridesystems.net API, with ids taken from there
+async function calculateBusRouteTime(routeID, startingStopID, endingStopID){
+        const time = await fetch('https://catbus.ridesystems.net/Services/JSONPRelay.svc/GetRouteStopArrivals').then(response => response.json())
+        .then(data => {
+            const startingStop = data.find(e => e.RouteStopID == startingStopID && e.RouteID == routeID)
+            console.log(startingStop)
+            const busNum = startingStop.ScheduledTimes[0].AssignedVehicleId
+            const departureTime = (moment.utc(startingStop.ScheduledTimes[0].DepartureTimeUTC).valueOf())
+            console.log(departureTime)
+
+            const endingStop = data.find(e => e.RouteStopID == endingStopID && e.RouteID == routeID)
+            console.log(endingStop)
+            const arrivalTime = (moment.utc(endingStop.ScheduledTimes.find(e => e.AssignedVehicleId == busNum).ArrivalTimeUTC).valueOf())
+            console.log(arrivalTime)
+
+            return arrivalTime - departureTime;
+        })
+        return time
+}
+
+export default async function Map() {
   const mapContainer = useRef(null);
   const map = useRef(null);
   const [lng, setLng] = useState(-82.8354);
@@ -204,6 +228,9 @@ export default function Map() {
       })
     })
   }
+
+  const routeTime = await calculateBusRouteTime(3, 202, 205);
+  console.log("Route time in milliseconds: " + routeTime)
 
   return (
     <div className='Map'>
