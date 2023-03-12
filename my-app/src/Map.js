@@ -1,6 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
 import mapboxgl from '!mapbox-gl'; // eslint-disable-line import/no-webpack-loader-syntax
-
 mapboxgl.accessToken = process.env.REACT_APP_MAPBOX_KEY
 
 export default function Map() {
@@ -9,28 +8,16 @@ export default function Map() {
   const [lng, setLng] = useState(-82.8354);
   const [lat, setLat] = useState(34.6767);
   const [zoom, setZoom] = useState(14);
-    const [busStops, setBusStops] = useState([])
-    const [busRoutes, setBusRoutes] = useState([])
+  const [busStops, setBusStops] = useState([])
+  const [busRoutes, setBusRoutes] = useState([])
+  const [busRoutesMap, setBusRoutesMap] = useState({})
 
-
-
-    const [busRoutesMap, setBusRoutesMap] = useState({})
-
-    var busRoute = [
+    var drawRoutes = [
         [-122.4194, 37.7749],
         [-122.4294, 37.7649],
         [-122.4394, 37.7549],
         [-122.4494, 37.7449]
-    ];
-
-    var geojson = {
-        type: 'Feature',
-        properties: {},
-        geometry: {
-            type: 'LineString',
-            coordinates: busRoute
-        }
-    };
+    ];  
 
     useEffect(() => {
         if (map.current) return; // initialize map only once
@@ -39,6 +26,32 @@ export default function Map() {
         style: 'mapbox://styles/mapbox/streets-v12',
         center: [lng, lat],
         zoom: zoom
+        });
+
+        map.current.on('load', () => {
+            map.current.addLayer({
+                id: 'route',
+                type: 'line',
+                source: {
+                    type: 'geojson',
+                    data: {
+                        type: 'Feature',
+                        properties: {},
+                        geometry: {
+                            type: 'LineString',
+                            coordinates: drawRoutes,
+                        },
+                    },
+                },
+                layout: {
+                    'line-join': 'round',
+                    'line-cap': 'round',
+                },
+                paint: {
+                    'line-color': '#888',
+                    'line-width': 8,
+                },
+            });
         });
 
         // Add navigation control to the map
@@ -163,51 +176,6 @@ export default function Map() {
         })
 
     }, [busStops])
-
-    useEffect(() => {
-        //Routes
-
-        const addRoutesToMap = () => {
-            Object.entries(busRoutes).forEach(([key, value]) => {
-                if (map.current.getLayer(key)) {
-                    map.current.removeLayer(key);
-                }
-
-                if (map.current.getSource(key)) {
-                    map.current.removeSource(key);
-                }
-
-                map.current.addSource(key, {
-                    type: 'geojson',
-                    data: {
-                        type: 'Feature',
-                        properties: {},
-                        geometry: {
-                            type: 'LineString',
-                            coordinates: value.polyline
-                        }
-                    }
-                });
-
-                map.current.addLayer({
-                    id: key,
-                    type: 'line',
-                    source: key,
-                    layout: {
-                        'line-join': 'round',
-                        'line-cap': 'round'
-                    },
-                    paint: {
-                        'line-color': '#3887be',
-                        'line-width': 5
-                    }
-                });
-            });
-        };
-
-        map.current.on('load', addRoutesToMap);
-
-    }, [busRoutes]);
 
     return (
     <div className='Map'>
