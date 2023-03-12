@@ -9,6 +9,7 @@ mapboxgl.accessToken = process.env.REACT_APP_MAPBOX_KEY
 // takes in a route ID, starting bus stop ID, and ending bus stop ID, and calculates the time to travel between them
 // assumes the next bus available is taken
 // Uses the catbus.ridesystems.net API, with ids taken from there
+// Returns time between the two stops in milliseconds
 async function calculateBusRouteTime(routeID, startingStopID, endingStopID){
         const time = await fetch('https://catbus.ridesystems.net/Services/JSONPRelay.svc/GetRouteStopArrivals').then(response => response.json())
         .then(data => {
