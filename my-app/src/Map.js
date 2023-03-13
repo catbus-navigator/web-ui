@@ -43,6 +43,11 @@ export default async function Map() {
 
     const [busRoutesMap, setBusRoutesMap] = useState({})
 
+    const [popup, setPopup] = useState(null);
+
+    // Declare timerId using useRef
+    const timerIdRef = useRef(null);
+
     useEffect(() => {
     if (map.current) return; // initialize map only once
     map.current = new mapboxgl.Map({
@@ -73,6 +78,14 @@ export default async function Map() {
           }
       }));
 
+
+        const popup = new mapboxgl.Popup({
+            closeButton: true,
+            closeOnClick: true
+        })
+
+        setPopup(popup)
+
   }, []);
 
     // Effect hook to fetch the bus routes data from the API
@@ -84,9 +97,18 @@ export default async function Map() {
                 //console.log(data.stops)
                 setBusRoutes(data.routes)
                 let map = {};
+
                 Object.entries(data.routes).map(([key, value]) => {
+
                     value.stops.forEach( stop => {
-                        map[stop] = value;
+
+                        value["route_id"] = key;
+
+                        if (map[stop] == undefined) {
+                            map[stop] = [];
+                        }
+
+                        map[stop].push(value);
                     })
                 })
 
@@ -99,10 +121,12 @@ export default async function Map() {
     // Effect hook to update bustops on the boxmap
     useEffect ( () => {
 
-        const popup = new mapboxgl.Popup({
-            closeButton: true,
-            closeOnClick: false
-        })
+        const routeColorMap = {
+            'Red': 'red',
+            'Blue': 'blue',
+            'Green': 'green',
+            // add more routes and colors here
+        };
 
         Object.entries(busStops).map(([key, value]) => {
 
@@ -124,57 +148,105 @@ export default async function Map() {
                 .setLngLat(busCoordinates)
                 .addTo(map.current);
 
-            markerEl.addEventListener('click', function () {
 
+            const updatePopupInformation = () => {
 
-                const routeName = busRoutesMap[key] != undefined ? busRoutesMap[key].name : '';
+                //console.log("updatePopupInformation method called")
 
-                let description = `<h3>${value.name}</h3><hr/><b> ${routeName}</b>`;
+                let description = `<div style="width: 180px;"><h3>${value.name}</h3></div>`;
+
 
                 fetch('https://api-my.app.clemson.edu/api/v0/map/bus/arrivals/'+key)
                     .then(response => response.json())
                     .then(data => {
 
-                        let position;
-                        Object.entries(data).map(([dataKey, dataValue]) => {
+                        console.log("data", data, key)
 
-                            position = dataValue[0];
+                        if (busRoutesMap[key] == undefined) busRoutesMap[key] = []
 
-                            if (position) {
+                        busRoutesMap[key].forEach( busRoutesData => {
 
-                                // get the current time
-                                const currentTime = new Date();
+                            Object.entries(data).map(([arrivalTimeDataKey, arrivalTimeDataValue]) => {
 
-                                // parse the arrival time from the API response
-                                const arrivalTime = new Date(position["arrival"]);
+                                //console.log("popup data: ", arrivalTimeDataValue, arrivalTimeDataKey, key, busRoutesData.route_id)
 
-                                // calculate the difference between the arrival time and the current time
-                                const timeDiff = arrivalTime.getTime() - currentTime.getTime();
+                                if (busRoutesData.route_id != arrivalTimeDataKey)
+                                    return;
 
-                                // convert the time difference from milliseconds to minutes
-                                const timeDiffInMinutes = Math.round(timeDiff / 1000 / 60);
+                                let timeDiffInMinutes = Number.MAX_SAFE_INTEGER;
 
-                                description += `<hr/><div> : Expected Time = ${timeDiffInMinutes} minutes<div>`
-                            }
+                                arrivalTimeDataValue.forEach( arrivalTimeObj => {
+
+                                    console.log("forEach Loop: ", arrivalTimeDataValue, timeDiffInMinutes, arrivalTimeObj)
+
+                                    // get the current time
+                                    const currentTime = new Date();
+
+                                    // parse the arrival time from the API response
+                                    const arrivalTime = new Date(arrivalTimeObj["arrival"]);
+
+                                    // calculate the difference between the arrival time and the current time
+                                    const timeDiff = arrivalTime.getTime() - currentTime.getTime();
+
+                                    // convert the time difference from milliseconds to minutes
+                                    const currentTimeDiffInMinutes = Math.round(timeDiff / 1000 / 60);
+
+                                    console.log("timeDiffInMinutes1: ", currentTimeDiffInMinutes, timeDiffInMinutes)
+
+
+                                    if (currentTimeDiffInMinutes > 0) {
+                                        timeDiffInMinutes = Math.min(currentTimeDiffInMinutes, timeDiffInMinutes)
+                                    }
+
+                                    console.log("timeDiffInMinutes2: ", currentTimeDiffInMinutes, timeDiffInMinutes)
+
+                                })
+
+                                description += `<hr/><div style="display:flex; align-items:center;">`
+                                    + `<div style="background-color:${routeColorMap[busRoutesData.name]}; border-radius:50%; width:10px; height:10px; margin-right:5px;"></div>`
+                                    + `<div><b>${busRoutesData.name}</b></div>`
+                                    + `<div style="margin-left:auto;">${timeDiffInMinutes} minutes</div>`
+                                    + `</div>`;
+                            })
+
                         })
-
-
 
                         // Change the cursor style as a UI indicator.
                         map.current.getCanvas().style.cursor = 'pointer';
 
                         // Populate the popup and set its coordinates
                         // based on the feature found.
-                        popup.setLngLat(busCoordinates).setHTML(description).addTo(map.current);
+                        if (popup.isOpen()) {
+                            popup.setHTML(description);
+                        } else {
+                            popup.setLngLat(busCoordinates).setHTML(description).addTo(map.current);
+                        }
+
 
                     })
                     .catch(error => console.log(error));
+            }
+
+            markerEl.addEventListener('click', function () {
+
+                updatePopupInformation();
+                // Use setInterval() to update the content of the popup every 10 seconds
+                // timerIdRef.current = setInterval(() => {
+                //     console.log("Set Intervals")
+                //     updatePopupInformation();
+                // }, 10000);
+
+
+                // popup.on('close', () => {
+                //     console.log("clicked on popupclose eveent", timerIdRef.current);
+                //     clearInterval(timerIdRef.current);
+                // });
 
             });
-
         })
 
     }, [busStops])
+
 
   function onCalculateHandler(){
     const startingAddressArray = document.getElementById('startingAddress').value.split(" ")
