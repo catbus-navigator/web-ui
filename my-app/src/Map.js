@@ -29,7 +29,7 @@ async function calculateBusRouteTime(routeID, startingStopID, endingStopID){
         return time
 }
 
-export default async function Map() {
+export default function Map() {
   const mapContainer = useRef(null);
   const map = useRef(null);
   const [lng, setLng] = useState(-82.8354);
@@ -302,8 +302,9 @@ export default async function Map() {
     })
   }
 
-  const routeTime = await calculateBusRouteTime(3, 202, 205);
-  console.log("Route time in milliseconds: " + routeTime)
+  calculateBusRouteTime(3, 202, 205).then(routeTime => {
+    console.log("Route time in milliseconds: " + routeTime)
+  })
 
   return (
     <div className='Map'>
