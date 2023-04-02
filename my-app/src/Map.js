@@ -94,7 +94,6 @@ export default function Map() {
             .then(response => response.json())
             .then(data => {
                 setBusStops(data.stops)
-                //console.log(data.stops)
                 setBusRoutes(data.routes)
                 let map = {};
 
@@ -254,10 +253,31 @@ export default function Map() {
     fetch('https://api.mapbox.com/geocoding/v5/mapbox.places/'+ startingAddressArray[0] + '%20'+ startingAddressArray[1] + '%20'+ startingAddressArray[2] + '%20'+ startingAddressArray[3] + '.json?proximity=-82.83673382875219%2C34.676993908723304&access_token='+mapboxgl.accessToken)
     .then(response => response.json())
     .then(data => {
-      fetch('https://api.mapbox.com/geocoding/v5/mapbox.places/'+ endingAddressArray[0] + '%20'+ endingAddressArray[1] + '%20'+ endingAddressArray[2] + '%20'+ endingAddressArray[3] + '.json?proximity=-82.83673382875219%2C34.676993908723304&access_token='+mapboxgl.accessToken)
+      let distancesFromStartingAddress = []
+            Object.entries(busStops).map(([dataKey, dataValue]) => {
+              distancesFromStartingAddress.push([Math.sqrt((data.features[0].center[1] - dataValue.coordinate.lat)**2 +(data.features[0].center[0] - dataValue.coordinate.lng)**2), dataValue.coordinate.lat, dataValue.coordinate.lng])
+            })
+            distancesFromStartingAddress = distancesFromStartingAddress.sort(
+              (p1, p2) => (p1[0] < p2[0]) ? 1 : (p1[0] > p2[0]) ? -1 : 0);
+            while (distancesFromStartingAddress.length > 24){
+              distancesFromStartingAddress.shift()
+            }
+            let busStopAPIString = ""
+            for (let i = 0 ; i < distancesFromStartingAddress.length; i++){
+              busStopAPIString += distancesFromStartingAddress[i][2] + "," + distancesFromStartingAddress[i][1]
+              if (i < distancesFromStartingAddress.length-1){
+                busStopAPIString += ";"
+              }
+            }
+            fetch("https://api.mapbox.com/directions-matrix/v1/mapbox/walking/"+data.features[0].center[0]+","+data.features[0].center[1]+";" +busStopAPIString+"?access_token="+mapboxgl.accessToken)
+            .then(timeArrayResponse => timeArrayResponse.json())
+            .then(timeArray => {
+              timeArray.durations[0][0] = 9999999
+              let nearestBusStopCoords = timeArray.destinations[timeArray.durations[0].indexOf(Math.min(...timeArray.durations[0]))].location
+                fetch('https://api.mapbox.com/geocoding/v5/mapbox.places/'+ endingAddressArray[0] + '%20'+ endingAddressArray[1] + '%20'+ endingAddressArray[2] + '%20'+ endingAddressArray[3] + '.json?proximity=-82.83673382875219%2C34.676993908723304&access_token='+mapboxgl.accessToken)
       .then(response2 => response2.json())
       .then(data2 => {
-        fetch('https://api.mapbox.com/directions/v5/mapbox/walking/'+ data.features[0].center[0] +'%2C' + data.features[0].center[1] +'%3B' + data2.features[0].center[0] + '%2C'+ data2.features[0].center[1] + '?alternatives=false&continue_straight=true&geometries=geojson&language=en&overview=simplified&steps=true&access_token='+mapboxgl.accessToken)
+        fetch('https://api.mapbox.com/directions/v5/mapbox/walking/'+ data.features[0].center[0] +'%2C' + data.features[0].center[1] +'%3B' + nearestBusStopCoords[0] + '%2C'+ nearestBusStopCoords[1] + '?alternatives=false&continue_straight=true&geometries=geojson&language=en&overview=simplified&steps=true&access_token='+mapboxgl.accessToken)
             .then(response => response.json())
             .then(data3 => {
                 if (map.current.getSource('route')){
@@ -298,6 +318,7 @@ export default function Map() {
               }
             })
             .catch(error => console.log(error));
+            })
       })
     })
   }
