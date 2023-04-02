@@ -234,10 +234,10 @@ export default function Map() {
           updatePopupInformation();
         }, 10000);
 
-        popup.on("close", () => {
-          console.log("clicked on popupclose eveent", timerIdRef.current);
-          clearInterval(timerIdRef.current);
-        });
+        // popup.on('close', () => {
+        //     console.log("clicked on popupclose eveent", timerIdRef.current);
+        //     clearInterval(timerIdRef.current);
+        // });
       });
     });
   }, [busStops]);
