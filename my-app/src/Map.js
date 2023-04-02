@@ -217,8 +217,12 @@ export default function Map() {
                         // Populate the popup and set its coordinates
                         // based on the feature found.
                         if (popup.isOpen()) {
+
+                            console.log("popup is open: ", description)
+
                             popup.setHTML(description);
                         } else {
+                            console.log("popup is open else: ", description)
                             popup.setLngLat(busCoordinates).setHTML(description).addTo(map.current);
                         }
 
@@ -231,16 +235,16 @@ export default function Map() {
 
                 updatePopupInformation();
                 // Use setInterval() to update the content of the popup every 10 seconds
-                // timerIdRef.current = setInterval(() => {
-                //     console.log("Set Intervals")
-                //     updatePopupInformation();
-                // }, 10000);
+                timerIdRef.current = setInterval(() => {
+                    console.log("Set Intervals")
+                    updatePopupInformation();
+                }, 10000);
 
 
-                // popup.on('close', () => {
-                //     console.log("clicked on popupclose eveent", timerIdRef.current);
-                //     clearInterval(timerIdRef.current);
-                // });
+                popup.on('close', () => {
+                    console.log("clicked on popupclose eveent", timerIdRef.current);
+                    clearInterval(timerIdRef.current);
+                });
 
             });
         })
