@@ -308,22 +308,22 @@ export default function Map() {
 
   return (
     <div className='Map'>
-    <div style={{marginRight: "75%"}}>
+    <div style={{ marginRight: "75%" }}>
     <form style={{alignItems: "center", flexDirection: "column"}}>
-      <label htmlFor="startingAddress">Starting Address:   </label>
+
       <AddressAutofill accessToken={mapboxgl.accessToken}>
-      <input id="startingAddress" name="startingAddress" autoComplete="shipping address-line1"></input>
+      <input id="startingAddress" placeholder="Enter starting address.." name="startingAddress" autoComplete="shipping address-line1"></input>
       </AddressAutofill>
     </form>
     <form style={{alignItems: "center", flexDirection: "column"}}>
-        <label htmlFor="endingAddress">Ending Address:   </label>
+
         <AddressAutofill accessToken={mapboxgl.accessToken}>
-        <input type="text" id="endingAddress" name="endingAddress"></input>
+        <input type="text" placeholder="Enter ending address.." id="endingAddress" name="endingAddress"></input>
         </AddressAutofill>
     </form>
     <input type="button" value="Get Bus Directions!" onClick={onCalculateHandler}/>
     </div>
     <div ref={mapContainer} className="map-container" />
     </div>
-  );
+    );
 }
