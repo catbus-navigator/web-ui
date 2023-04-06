@@ -2,6 +2,8 @@ import React, { useRef, useEffect, useState } from 'react';
 import mapboxgl from '!mapbox-gl'; // eslint-disable-line import/no-webpack-loader-syntax
 import { AddressAutofill } from '@mapbox/search-js-react';
 import moment from 'moment';
+import MapboxGeocoder from '@mapbox/mapbox-gl-geocoder';
+
 moment().format();
 
 mapboxgl.accessToken = process.env.REACT_APP_MAPBOX_KEY
@@ -30,11 +32,11 @@ async function calculateBusRouteTime(routeID, startingStopID, endingStopID){
 }
 
 export default function Map() {
-  const mapContainer = useRef(null);
-  const map = useRef(null);
-  const [lng, setLng] = useState(-82.8354);
-  const [lat, setLat] = useState(34.6767);
-  const [zoom, setZoom] = useState(14);
+    const mapContainer = useRef(null);
+    const map = useRef(null);
+    const [lng, setLng] = useState(-82.8354);
+    const [lat, setLat] = useState(34.6767);
+    const [zoom, setZoom] = useState(14);
 
     const [busStops, setBusStops] = useState([])
     const [busRoutes, setBusRoutes] = useState([])
@@ -48,35 +50,42 @@ export default function Map() {
     // Declare timerId using useRef
     const timerIdRef = useRef(null);
 
+    //map.addControl(
+    //    new MapboxGeocoder({
+    //        accessToken: mapboxgl.accessToken,
+    //        mapboxgl: mapboxgl
+    //    })
+    //);
+
     useEffect(() => {
-    if (map.current) return; // initialize map only once
-    map.current = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/streets-v12',
-      center: [lng, lat],
-      zoom: zoom
-    });
+        if (map.current) return; // initialize map only once
+        map.current = new mapboxgl.Map({
+            container: mapContainer.current,
+            style: 'mapbox://styles/mapbox/streets-v12',
+            center: [lng, lat],
+            zoom: zoom
+        });
 
-    // Add navigation control to the map
-    map.current.addControl(new mapboxgl.NavigationControl({
-        showZoom: true,
-        showCompass: false,
-        showCurrentLocation: true, // this enables the "Show my location" icon
-        positionOptions: {
-            enableHighAccuracy: true // enable high accuracy for better location accuracy
-        },
-        visualizePitch: true
-    }));
+        // Add navigation control to the map
+        map.current.addControl(new mapboxgl.NavigationControl({
+            showZoom: true,
+            showCompass: false,
+            showCurrentLocation: true, // this enables the "Show my location" icon
+            positionOptions: {
+                enableHighAccuracy: true // enable high accuracy for better location accuracy
+            },
+            visualizePitch: true
+        }));
 
-      // Add geolocate control to the map
-      map.current.addControl(new mapboxgl.GeolocateControl({
-          positionOptions: {
-              enableHighAccuracy: true // enable high accuracy for better location accuracy
-          },
-          fitBoundsOptions: {
-              maxZoom: 15 // set a maximum zoom level when fitting the bounds
-          }
-      }));
+        // Add geolocate control to the map
+        map.current.addControl(new mapboxgl.GeolocateControl({
+            positionOptions: {
+                enableHighAccuracy: true // enable high accuracy for better location accuracy
+            },
+            fitBoundsOptions: {
+                maxZoom: 15 // set a maximum zoom level when fitting the bounds
+            }
+        }));
 
 
         const popup = new mapboxgl.Popup({
@@ -86,7 +95,7 @@ export default function Map() {
 
         setPopup(popup)
 
-  }, []);
+    }, []);
 
     // Effect hook to fetch the bus routes data from the API
     useEffect(() => {
@@ -100,7 +109,7 @@ export default function Map() {
 
                 Object.entries(data.routes).map(([key, value]) => {
 
-                    value.stops.forEach( stop => {
+                    value.stops.forEach(stop => {
 
                         value["route_id"] = key;
 
@@ -119,7 +128,7 @@ export default function Map() {
     }, []);
 
     // Effect hook to update bustops on the boxmap
-    useEffect ( () => {
+    useEffect(() => {
 
         const routeColorMap = {
             'Red': 'red',
@@ -156,7 +165,7 @@ export default function Map() {
                 let description = `<div style="width: 180px;"><h3>${value.name}</h3></div>`;
 
 
-                fetch('https://api-my.app.clemson.edu/api/v0/map/bus/arrivals/'+key)
+                fetch('https://api-my.app.clemson.edu/api/v0/map/bus/arrivals/' + key)
                     .then(response => response.json())
                     .then(data => {
 
@@ -164,7 +173,7 @@ export default function Map() {
 
                         if (busRoutesMap[key] == undefined) busRoutesMap[key] = []
 
-                        busRoutesMap[key].forEach( busRoutesData => {
+                        busRoutesMap[key].forEach(busRoutesData => {
 
                             Object.entries(data).map(([arrivalTimeDataKey, arrivalTimeDataValue]) => {
 
@@ -175,7 +184,7 @@ export default function Map() {
 
                                 let timeDiffInMinutes = Number.MAX_SAFE_INTEGER;
 
-                                arrivalTimeDataValue.forEach( arrivalTimeObj => {
+                                arrivalTimeDataValue.forEach(arrivalTimeObj => {
 
                                     console.log("forEach Loop: ", arrivalTimeDataValue, timeDiffInMinutes, arrivalTimeObj)
 
@@ -248,82 +257,81 @@ export default function Map() {
     }, [busStops])
 
 
-  function onCalculateHandler(){
-    const startingAddressArray = document.getElementById('startingAddress').value.split(" ")
-    const endingAddressArray = document.getElementById('endingAddress').value.split(" ")
-    fetch('https://api.mapbox.com/geocoding/v5/mapbox.places/'+ startingAddressArray[0] + '%20'+ startingAddressArray[1] + '%20'+ startingAddressArray[2] + '%20'+ startingAddressArray[3] + '.json?proximity=-82.83673382875219%2C34.676993908723304&access_token='+mapboxgl.accessToken)
-    .then(response => response.json())
-    .then(data => {
-      fetch('https://api.mapbox.com/geocoding/v5/mapbox.places/'+ endingAddressArray[0] + '%20'+ endingAddressArray[1] + '%20'+ endingAddressArray[2] + '%20'+ endingAddressArray[3] + '.json?proximity=-82.83673382875219%2C34.676993908723304&access_token='+mapboxgl.accessToken)
-      .then(response2 => response2.json())
-      .then(data2 => {
-        fetch('https://api.mapbox.com/directions/v5/mapbox/walking/'+ data.features[0].center[0] +'%2C' + data.features[0].center[1] +'%3B' + data2.features[0].center[0] + '%2C'+ data2.features[0].center[1] + '?alternatives=false&continue_straight=true&geometries=geojson&language=en&overview=simplified&steps=true&access_token='+mapboxgl.accessToken)
+    function onCalculateHandler() {
+        const startingAddressArray = document.getElementById('startingAddress').value.split(" ")
+        const endingAddressArray = document.getElementById('endingAddress').value.split(" ")
+        fetch('https://api.mapbox.com/geocoding/v5/mapbox.places/' + startingAddressArray[0] + '%20' + startingAddressArray[1] + '%20' + startingAddressArray[2] + '%20' + startingAddressArray[3] + '.json?proximity=-82.83673382875219%2C34.676993908723304&access_token=' + mapboxgl.accessToken)
             .then(response => response.json())
-            .then(data3 => {
-                if (map.current.getSource('route')){
-                  map.current.getSource('route').setData({
-                  'type': 'Feature',
-                  'properties': {},
-                  'geometry': {
-                  'type': 'LineString',
-                  'coordinates': data3.routes[0].geometry.coordinates
-                  }
-                  })
-                }
-                else {
-                map.current.addSource('route', {
-                  'type': 'geojson',
-                  'data': {
-                  'type': 'Feature',
-                  'properties': {},
-                  'geometry': {
-                  'type': 'LineString',
-                  'coordinates': data3.routes[0].geometry.coordinates
-                  }
-                  }
-                });
-                map.current.addLayer({
-                  'id': 'route',
-                  'type': 'line',
-                  'source': 'route',
-                  'layout': {
-                  'line-join': 'round',
-                  'line-cap': 'round'
-                  },
-                  'paint': {
-                  'line-color': '#888',
-                  'line-width': 8
-                  }
-                  });
-              }
+            .then(data => {
+                fetch('https://api.mapbox.com/geocoding/v5/mapbox.places/' + endingAddressArray[0] + '%20' + endingAddressArray[1] + '%20' + endingAddressArray[2] + '%20' + endingAddressArray[3] + '.json?proximity=-82.83673382875219%2C34.676993908723304&access_token=' + mapboxgl.accessToken)
+                    .then(response2 => response2.json())
+                    .then(data2 => {
+                        fetch('https://api.mapbox.com/directions/v5/mapbox/walking/' + data.features[0].center[0] + '%2C' + data.features[0].center[1] + '%3B' + data2.features[0].center[0] + '%2C' + data2.features[0].center[1] + '?alternatives=false&continue_straight=true&geometries=geojson&language=en&overview=simplified&steps=true&access_token=' + mapboxgl.accessToken)
+                            .then(response => response.json())
+                            .then(data3 => {
+                                if (map.current.getSource('route')) {
+                                    map.current.getSource('route').setData({
+                                        'type': 'Feature',
+                                        'properties': {},
+                                        'geometry': {
+                                            'type': 'LineString',
+                                            'coordinates': data3.routes[0].geometry.coordinates
+                                        }
+                                    })
+                                }
+                                else {
+                                    map.current.addSource('route', {
+                                        'type': 'geojson',
+                                        'data': {
+                                            'type': 'Feature',
+                                            'properties': {},
+                                            'geometry': {
+                                                'type': 'LineString',
+                                                'coordinates': data3.routes[0].geometry.coordinates
+                                            }
+                                        }
+                                    });
+                                    map.current.addLayer({
+                                        'id': 'route',
+                                        'type': 'line',
+                                        'source': 'route',
+                                        'layout': {
+                                            'line-join': 'round',
+                                            'line-cap': 'round'
+                                        },
+                                        'paint': {
+                                            'line-color': '#888',
+                                            'line-width': 8
+                                        }
+                                    });
+                                }
+                            })
+                            .catch(error => console.log(error));
+                    })
             })
-            .catch(error => console.log(error));
-      })
+    }
+
+    calculateBusRouteTime(3, 202, 205).then(routeTime => {
+        console.log("Route time in milliseconds: " + routeTime)
     })
-  }
 
-  calculateBusRouteTime(3, 202, 205).then(routeTime => {
-    console.log("Route time in milliseconds: " + routeTime)
-  })
-
-  return (
-    <div className='Map'>
-    <div style={{ marginRight: "75%" }}>
-    <form style={{alignItems: "center", flexDirection: "column"}}>
-
-      <AddressAutofill accessToken={mapboxgl.accessToken}>
-      <input id="startingAddress" placeholder="Enter starting address.." name="startingAddress" autoComplete="shipping address-line1"></input>
-      </AddressAutofill>
-    </form>
-    <form style={{alignItems: "center", flexDirection: "column"}}>
-
-        <AddressAutofill accessToken={mapboxgl.accessToken}>
-        <input type="text" placeholder="Enter ending address.." id="endingAddress" name="endingAddress"></input>
-        </AddressAutofill>
-    </form>
-    <input type="button" value="Get Bus Directions!" onClick={onCalculateHandler}/>
-    </div>
-    <div ref={mapContainer} className="map-container" />
-    </div>
+    return (
+        <div className='Map'>
+            <div style={{ marginRight: "75%" }}>
+                <form style={{ alignItems: "center", flexDirection: "column" }}>
+                    <AddressAutofill accessToken={mapboxgl.accessToken}>
+                        <input id="startingAddress" placeholder="Enter starting address.." name="startingAddress" autoComplete="shipping address-line1"></input>
+                    </AddressAutofill>
+                </form>
+                <div ref={mapContainer} className="map-container" />
+                <form style={{ alignItems: "center", flexDirection: "column" }}>
+                    <div id="searchbox-container" />
+                    <AddressAutofill accessToken={mapboxgl.accessToken}>
+                        <input type="text" placeholder="Enter ending address.." id="endingAddress" name="endingAddress"></input>
+                    </AddressAutofill>
+                </form>
+                <input type="button" value="Get Bus Directions!" onClick={onCalculateHandler} />
+            </div>
+        </div>
     );
 }
