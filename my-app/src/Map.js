@@ -91,7 +91,7 @@ export default function Map() {
 
         setBusRoutesMap(map);
       })
-      .catch((error) => console.log(error));
+      .catch((error) => console.error(error));
   }, []);
 
   // Effect hook to update bustops on the boxmap
@@ -212,7 +212,7 @@ export default function Map() {
                 .addTo(map.current);
             }
           })
-          .catch((error) => console.log(error));
+          .catch((error) => console.error(error));
       };
 
       markerEl.addEventListener("click", function () {
@@ -231,14 +231,66 @@ export default function Map() {
     });
   }, [busStops]);
 
-  function onCalculateHandler() {
+  async function getNearestBusStops(data) {
+    // console.log(data);
+    let distancesFromStartingAddress = [];
+    Object.entries(busStops).map(([dataKey, dataValue]) => {
+      // console.log(dataValue);
+      distancesFromStartingAddress.push([
+        Math.sqrt(
+          (data.features[0].center[1] - dataValue.coordinate.lat) ** 2 +
+            (data.features[0].center[0] - dataValue.coordinate.lng) ** 2
+        ),
+        dataValue.coordinate.lat,
+        dataValue.coordinate.lng,
+        dataValue.name,
+      ]);
+    });
+    distancesFromStartingAddress = distancesFromStartingAddress.sort((p1, p2) =>
+      p1[0] < p2[0] ? 1 : p1[0] > p2[0] ? -1 : 0
+    );
+    while (distancesFromStartingAddress.length > 24) {
+      distancesFromStartingAddress.shift();
+    }
+    let busStopAPIString = "";
+    for (let i = 0; i < distancesFromStartingAddress.length; i++) {
+      busStopAPIString +=
+        distancesFromStartingAddress[i][2] +
+        "," +
+        distancesFromStartingAddress[i][1];
+      if (i < distancesFromStartingAddress.length - 1) {
+        busStopAPIString += ";";
+      }
+    }
+
+    console.log(distancesFromStartingAddress);
+
+    return fetch(
+      "https://api.mapbox.com/directions-matrix/v1/mapbox/walking/" +
+        data.features[0].center[0] +
+        "," +
+        data.features[0].center[1] +
+        ";" +
+        busStopAPIString +
+        "?access_token=" +
+        mapboxgl.accessToken
+    ).then(async (response) => {
+      const timeArray = await response.json();
+      timeArray.durations[0][0] = Infinity;
+      return timeArray;
+    });
+  }
+
+  async function onCalculateHandler() {
+    // Get addresses from input boxes
     const startingAddressArray = document
       .getElementById("startingAddress")
       .value.split(" ");
     const endingAddressArray = document
       .getElementById("endingAddress")
       .value.split(" ");
-    fetch(
+    // fetch lat and long for starting address
+    const startGeodata = await fetch(
       "https://api.mapbox.com/geocoding/v5/mapbox.places/" +
         startingAddressArray[0] +
         "%20" +
@@ -249,87 +301,53 @@ export default function Map() {
         startingAddressArray[3] +
         ".json?proximity=-82.83673382875219%2C34.676993908723304&access_token=" +
         mapboxgl.accessToken
-    )
-      .then((response) => response.json())
-      .then((data) => {
-        let distancesFromStartingAddress = [];
-        Object.entries(busStops).map(([dataKey, dataValue]) => {
-          distancesFromStartingAddress.push([
-            Math.sqrt(
-              (data.features[0].center[1] - dataValue.coordinate.lat) ** 2 +
-                (data.features[0].center[0] - dataValue.coordinate.lng) ** 2
-            ),
-            dataValue.coordinate.lat,
-            dataValue.coordinate.lng,
-          ]);
-        });
-        distancesFromStartingAddress = distancesFromStartingAddress.sort(
-          (p1, p2) => (p1[0] < p2[0] ? 1 : p1[0] > p2[0] ? -1 : 0)
-        );
-        while (distancesFromStartingAddress.length > 24) {
-          distancesFromStartingAddress.shift();
-        }
-        let busStopAPIString = "";
-        for (let i = 0; i < distancesFromStartingAddress.length; i++) {
-          busStopAPIString +=
-            distancesFromStartingAddress[i][2] +
-            "," +
-            distancesFromStartingAddress[i][1];
-          if (i < distancesFromStartingAddress.length - 1) {
-            busStopAPIString += ";";
-          }
-        }
-        fetch(
-          "https://api.mapbox.com/directions-matrix/v1/mapbox/walking/" +
-            data.features[0].center[0] +
-            "," +
-            data.features[0].center[1] +
-            ";" +
-            busStopAPIString +
-            "?access_token=" +
-            mapboxgl.accessToken
-        )
-          .then((timeArrayResponse) => timeArrayResponse.json())
-          .then((timeArray) => {
-            timeArray.durations[0][0] = 9999999;
-            let nearestBusStopCoords =
-              timeArray.destinations[
-                timeArray.durations[0].indexOf(
-                  Math.min(...timeArray.durations[0])
-                )
-              ].location;
-            fetch(
-              "https://api.mapbox.com/geocoding/v5/mapbox.places/" +
-                endingAddressArray[0] +
-                "%20" +
-                endingAddressArray[1] +
-                "%20" +
-                endingAddressArray[2] +
-                "%20" +
-                endingAddressArray[3] +
-                ".json?proximity=-82.83673382875219%2C34.676993908723304&access_token=" +
-                mapboxgl.accessToken
-            )
-              .then((response2) => response2.json())
-              .then((data2) => {
-                // Hardcoded destination: MacAdams
-                // TODO: use real destination
-                console.log(data.features[0].center);
-                console.log(nearestBusStopCoords);
-                drawNavRoute(
-                  data.features[0].center,
-                  [-82.83452, 34.67555],
-                  {
-                    coords: nearestBusStopCoords,
-                  },
-                  {
-                    coords: [-82.83547, 34.67584],
-                  },
-                  undefined
-                );
-              });
-          });
-      });
+    ).then(async (data) => {
+      return data.json();
+    });
+    // let nearestBusStopCoords =
+    //   timeArray.destinations[
+    //     timeArray.durations[0].indexOf(Math.min(...timeArray.durations[0]))
+    //   ].location;
+
+    const endGeodata = await fetch(
+      "https://api.mapbox.com/geocoding/v5/mapbox.places/" +
+        endingAddressArray[0] +
+        "%20" +
+        endingAddressArray[1] +
+        "%20" +
+        endingAddressArray[2] +
+        "%20" +
+        endingAddressArray[3] +
+        ".json?proximity=-82.83673382875219%2C34.676993908723304&access_token=" +
+        mapboxgl.accessToken
+    ).then(async (data) => {
+      return data.json();
+    });
+
+    const startingTimeArray = await getNearestBusStops(startGeodata);
+    const endingTimeArray = await getNearestBusStops(startGeodata);
+
+    console.log(startingTimeArray);
+    console.log(endingTimeArray);
+    //   .then((response2) => response2.json())
+    //   .then((data2) => {
+    //     // Hardcoded destination: MacAdams
+    //     // TODO: use real destination
+    //     // console.log(data.features[0].center);
+    //     // console.log(nearestBusStopCoords);
+    //     drawNavRoute(
+    //       data.features[0].center,
+    //       [-82.83452, 34.67555],
+    //       {
+    //         coords: nearestBusStopCoords,
+    //       },
+    //       {
+    //         coords: [-82.83547, 34.67584],
+    //       },
+    //       undefined
+    //     );
+    //   });
+    // });
   }
 
   // takes in a route ID, starting bus stop ID, and ending bus stop ID, and calculates the time to travel between them
@@ -390,7 +408,7 @@ export default function Map() {
     )
       .then((response) => response.json())
       .then((data3) => {
-        console.log(data3);
+        // console.log(data3);
 
         // draw path
         if (map.current.getSource("route")) {
@@ -447,7 +465,7 @@ export default function Map() {
         )
           .then((response) => response.json())
           .then((data3) => {
-            console.log(data3);
+            // console.log(data3);
 
             // draw path
             if (map.current.getSource("route2")) {
@@ -485,12 +503,11 @@ export default function Map() {
                 },
               });
             }
-
             //add instructions
             newSteps.push({ maneuver: { instruction: "Get off at stop X" } });
-            console.log(data3.routes[0].legs[0].steps);
+            // console.log(data3.routes[0].legs[0].steps);
             newSteps = newSteps.concat(data3.routes[0].legs[0].steps);
-            console.log(newSteps);
+            // console.log(newSteps);
             setSteps(newSteps);
           })
           .catch((error) => console.error(error));
