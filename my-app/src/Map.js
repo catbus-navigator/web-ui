@@ -14,10 +14,10 @@ export default function Map() {
   const [lat, setLat] = useState(34.6767);
   const [zoom, setZoom] = useState(14);
 
-  // const [busStops, setBusStops] = useState([]);
+  const [busStops, setBusStops] = useState([]);
   const [busRoutes, setBusRoutes] = useState([]);
 
-  // const [busRoutesMap, setBusRoutesMap] = useState({});
+  const [busRoutesMap, setBusRoutesMap] = useState({});
 
   const [popup, setPopup] = useState(null);
 
@@ -75,29 +75,35 @@ export default function Map() {
     )
       .then((response) => response.json())
       .then((data) => {
-        // setBusStops(data.stops);
         setBusRoutes(data);
-        // let map = {};
-
-        // Object.entries(data.routes).map(([key, value]) => {
-        //   value.stops.forEach((stop) => {
-        //     value["route_id"] = key;
-
-        //     if (map[stop] == undefined) {
-        //       map[stop] = [];
-        //     }
-
-        //     map[stop].push(value);
-        //   });
-        // });
-
-        // setBusRoutesMap(map);
       })
       .catch((error) => console.error(error));
+
+    fetch("https://api-my.app.clemson.edu/api/v0/map/bus/routes")
+      .then((response) => response.json())
+      .then((data) => {
+        setBusStops(data.stops);
+        let map = {};
+
+        Object.entries(data.routes).map(([key, value]) => {
+          value.stops.forEach((stop) => {
+            value["route_id"] = key;
+
+            if (map[stop] == undefined) {
+              map[stop] = [];
+            }
+
+            map[stop].push(value);
+          });
+
+          setBusRoutesMap(map);
+        });
+      })
+      .catch((error) => console.log(error));
   }, []);
 
   // Effect hook to update bustops on the boxmap
-  /*useEffect(() => {
+  useEffect(() => {
     const routeColorMap = {
       Red: "red",
       Blue: "blue",
@@ -231,7 +237,7 @@ export default function Map() {
         // });
       });
     });
-  }, [busStops]);*/
+  }, [busStops]);
 
   async function getNearestBusStops(data) {
     let distancesFromStartingAddress = [];
@@ -291,7 +297,6 @@ export default function Map() {
       distancesFromStartingAddress = distancesFromStartingAddress.sort(
         (p1, p2) => p1.time - p2.time
       );
-      console.log(distancesFromStartingAddress);
       return distancesFromStartingAddress;
     });
   }
@@ -319,10 +324,6 @@ export default function Map() {
     ).then(async (data) => {
       return data.json();
     });
-    // let nearestBusStopCoords =
-    //   timeArray.destinations[
-    //     timeArray.durations[0].indexOf(Math.min(...timeArray.durations[0]))
-    //   ].location;
 
     const endGeodata = await fetch(
       "https://api.mapbox.com/geocoding/v5/mapbox.places/" +
@@ -342,25 +343,43 @@ export default function Map() {
     const startingTimeArray = await getNearestBusStops(startGeodata);
     const endingTimeArray = await getNearestBusStops(endGeodata);
 
-    // console.log(startGeodata);
-    // console.log(endGeodata);
+    const [RouteID, startingStop, endingStop] = await chooseBestRoute(
+      startingTimeArray,
+      endingTimeArray
+    );
 
     drawNavRoute(
       startGeodata.features[0].center,
       endGeodata.features[0].center,
-      startingTimeArray[0].stop,
-      endingTimeArray[0].stop,
-      undefined
+      startingStop,
+      endingStop,
+      RouteID
     );
-    //   .then((response2) => response2.json())
-    //   .then((data2) => {
-    //     // Hardcoded destination: MacAdams
-    //     // TODO: use real destination
-    //     // console.log(data.features[0].center);
-    //     // console.log(nearestBusStopCoords);
-    //
-    //   });
-    // });
+  }
+
+  async function chooseBestRoute(startingArray, endingArray) {
+    var minTime = Infinity;
+    var minRouteID, minStartStop, minEndStop;
+    for (var i = 0; i < startingArray.length; i++) {
+      for (var j = 0; j < endingArray.length; j++) {
+        if (startingArray[i].stop.RouteID !== endingArray[j].stop.RouteID)
+          continue;
+
+        const busTime = await calculateBusRouteTime(
+          startingArray[i].stop.RouteID,
+          startingArray[i].stop.RouteStopID,
+          endingArray[j].stop.RouteStopID
+        );
+        const time = busTime + startingArray[i].time + endingArray[j].time;
+        if (time < minTime) {
+          minTime = time;
+          minRouteID = startingArray[i].stop.RouteID;
+          minStartStop = startingArray[i].stop;
+          minEndStop = endingArray[j].stop;
+        }
+      }
+    }
+    return [minRouteID, minStartStop, minEndStop];
   }
 
   // takes in a route ID, starting bus stop ID, and ending bus stop ID, and calculates the time to travel between them
@@ -374,35 +393,32 @@ export default function Map() {
       .then((response) => response.json())
       .then((data) => {
         const startingStop = data.find(
-          (e) => e.RouteStopID == startingStopID && e.RouteID == routeID
+          (e) => e.RouteStopID === startingStopID && e.RouteID === routeID
         );
-        // console.log(startingStop);
+        if (startingStop === undefined) return Infinity;
         const busNum = startingStop.ScheduledTimes[0].AssignedVehicleId;
         const departureTime = moment
           .utc(startingStop.ScheduledTimes[0].DepartureTimeUTC)
           .valueOf();
-        // console.log(departureTime);
 
         const endingStop = data.find(
-          (e) => e.RouteStopID == endingStopID && e.RouteID == routeID
+          (e) => e.RouteStopID === endingStopID && e.RouteID === routeID
         );
-        // console.log(endingStop);
-        const arrivalTime = moment
-          .utc(
-            endingStop.ScheduledTimes.find((e) => e.AssignedVehicleId == busNum)
-              .ArrivalTimeUTC
-          )
-          .valueOf();
-        // console.log(arrivalTime);
+        if (endingStop === undefined) return Infinity;
 
-        return arrivalTime - departureTime;
+        const endStopSchedule = endingStop.ScheduledTimes.filter(
+          (e) => e.AssignedVehicleId === busNum
+        ).find((e) => moment.utc(e.ArrivalTimeUTC).valueOf() > departureTime);
+        if (endStopSchedule === undefined) return Infinity;
+
+        const arrivalTime = moment
+          .utc(endStopSchedule.ArrivalTimeUTC)
+          .valueOf();
+        const time = (arrivalTime - departureTime) / 1000.0;
+        return time;
       });
     return time;
   }
-
-  // calculateBusRouteTime(3, 202, 205).then((routeTime) => {
-  //   console.log("Route time in milliseconds: " + routeTime);
-  // });
 
   function drawNavRoute(start, end, busStop1, busStop2, busRoute) {
     // console.log(start[0]);
