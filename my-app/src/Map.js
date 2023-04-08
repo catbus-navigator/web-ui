@@ -2,46 +2,10 @@ import React, { useRef, useEffect, useState } from "react";
 import mapboxgl from "!mapbox-gl"; // eslint-disable-line import/no-webpack-loader-syntax
 import { AddressAutofill } from "@mapbox/search-js-react";
 import moment from "moment";
+import Instructions from "./Instructions";
 moment().format();
 
 mapboxgl.accessToken = process.env.REACT_APP_MAPBOX_KEY;
-
-// takes in a route ID, starting bus stop ID, and ending bus stop ID, and calculates the time to travel between them
-// assumes the next bus available is taken
-// Uses the catbus.ridesystems.net API, with ids taken from there
-// Returns time between the two stops in milliseconds
-async function calculateBusRouteTime(routeID, startingStopID, endingStopID) {
-  const time = await fetch(
-    "https://catbus.ridesystems.net/Services/JSONPRelay.svc/GetRouteStopArrivals"
-  )
-    .then((response) => response.json())
-    .then((data) => {
-      const startingStop = data.find(
-        (e) => e.RouteStopID == startingStopID && e.RouteID == routeID
-      );
-      console.log(startingStop);
-      const busNum = startingStop.ScheduledTimes[0].AssignedVehicleId;
-      const departureTime = moment
-        .utc(startingStop.ScheduledTimes[0].DepartureTimeUTC)
-        .valueOf();
-      console.log(departureTime);
-
-      const endingStop = data.find(
-        (e) => e.RouteStopID == endingStopID && e.RouteID == routeID
-      );
-      console.log(endingStop);
-      const arrivalTime = moment
-        .utc(
-          endingStop.ScheduledTimes.find((e) => e.AssignedVehicleId == busNum)
-            .ArrivalTimeUTC
-        )
-        .valueOf();
-      console.log(arrivalTime);
-
-      return arrivalTime - departureTime;
-    });
-  return time;
-}
 
 export default function Map() {
   const mapContainer = useRef(null);
@@ -56,6 +20,8 @@ export default function Map() {
   const [busRoutesMap, setBusRoutesMap] = useState({});
 
   const [popup, setPopup] = useState(null);
+
+  const [steps, setSteps] = useState([]);
 
   // Declare timerId using useRef
   const timerIdRef = useRef(null);
@@ -104,11 +70,19 @@ export default function Map() {
 
   // Effect hook to fetch the bus routes data from the API
   useEffect(() => {
+    fetch(
+      "https://catbus.ridesystems.net/Services/JSONPRelay.svc/GetRoutesForMap"
+    )
+      .then((response) => response.json())
+      .then((data) => {
+        setBusRoutes(data);
+      })
+      .catch((error) => console.error(error));
+
     fetch("https://api-my.app.clemson.edu/api/v0/map/bus/routes")
       .then((response) => response.json())
       .then((data) => {
         setBusStops(data.stops);
-        setBusRoutes(data.routes);
         let map = {};
 
         Object.entries(data.routes).map(([key, value]) => {
@@ -121,9 +95,9 @@ export default function Map() {
 
             map[stop].push(value);
           });
-        });
 
-        setBusRoutesMap(map);
+          setBusRoutesMap(map);
+        });
       })
       .catch((error) => console.log(error));
   }, []);
@@ -164,7 +138,7 @@ export default function Map() {
         fetch("https://api-my.app.clemson.edu/api/v0/map/bus/arrivals/" + key)
           .then((response) => response.json())
           .then((data) => {
-            console.log("data", data, key);
+            // console.log("data", data, key);
 
             if (busRoutesMap[key] == undefined) busRoutesMap[key] = [];
 
@@ -178,12 +152,12 @@ export default function Map() {
                   let timeDiffInMinutes = Number.MAX_SAFE_INTEGER;
 
                   arrivalTimeDataValue.forEach((arrivalTimeObj) => {
-                    console.log(
-                      "forEach Loop: ",
-                      arrivalTimeDataValue,
-                      timeDiffInMinutes,
-                      arrivalTimeObj
-                    );
+                    // console.log(
+                    //   "forEach Loop: ",
+                    //   arrivalTimeDataValue,
+                    //   timeDiffInMinutes,
+                    //   arrivalTimeObj
+                    // );
 
                     // get the current time
                     const currentTime = new Date();
@@ -200,11 +174,11 @@ export default function Map() {
                       timeDiff / 1000 / 60
                     );
 
-                    console.log(
-                      "timeDiffInMinutes1: ",
-                      currentTimeDiffInMinutes,
-                      timeDiffInMinutes
-                    );
+                    // console.log(
+                    //   "timeDiffInMinutes1: ",
+                    //   currentTimeDiffInMinutes,
+                    //   timeDiffInMinutes
+                    // );
 
                     if (currentTimeDiffInMinutes > 0) {
                       timeDiffInMinutes = Math.min(
@@ -213,11 +187,11 @@ export default function Map() {
                       );
                     }
 
-                    console.log(
-                      "timeDiffInMinutes2: ",
-                      currentTimeDiffInMinutes,
-                      timeDiffInMinutes
-                    );
+                    // console.log(
+                    //   "timeDiffInMinutes2: ",
+                    //   currentTimeDiffInMinutes,
+                    //   timeDiffInMinutes
+                    // );
                   });
 
                   description +=
@@ -246,7 +220,7 @@ export default function Map() {
                 .addTo(map.current);
             }
           })
-          .catch((error) => console.log(error));
+          .catch((error) => console.error(error));
       };
 
       markerEl.addEventListener("click", function () {
@@ -265,14 +239,78 @@ export default function Map() {
     });
   }, [busStops]);
 
-  function onCalculateHandler() {
+  async function getNearestBusStops(data) {
+    let distancesFromStartingAddress = [];
+    Object.entries(busRoutes).forEach(([key, route]) => {
+      let distancesForRoute = [];
+      let checkedStops = [];
+      Object.entries(route.Stops).forEach(([key, stop]) => {
+        if (!checkedStops.includes(stop.AddressID)) {
+          checkedStops.push(stop.AddressID);
+          distancesForRoute.push({
+            dist: Math.sqrt(
+              (data.features[0].center[1] - stop.Latitude) ** 2 +
+                (data.features[0].center[0] - stop.Longitude) ** 2
+            ),
+            stop,
+          });
+        }
+      });
+      distancesForRoute = distancesForRoute.sort((p1, p2) => p1.dist - p2.dist);
+      for (let i = 0; i < Math.min(3, distancesForRoute.length); i++) {
+        distancesFromStartingAddress.push(distancesForRoute[i]);
+      }
+    });
+    distancesFromStartingAddress = distancesFromStartingAddress.sort(
+      (p1, p2) => p1.dist - p2.dist
+    );
+    // console.log(distancesFromStartingAddress);
+    distancesFromStartingAddress.splice(24);
+    let busStopAPIString = "";
+    for (let i = 0; i < distancesFromStartingAddress.length; i++) {
+      busStopAPIString +=
+        distancesFromStartingAddress[i].stop.Longitude +
+        "," +
+        distancesFromStartingAddress[i].stop.Latitude;
+      if (i < distancesFromStartingAddress.length - 1) {
+        busStopAPIString += ";";
+      }
+    }
+
+    // console.log(distancesFromStartingAddress);
+
+    return fetch(
+      "https://api.mapbox.com/directions-matrix/v1/mapbox/walking/" +
+        data.features[0].center[0] +
+        "," +
+        data.features[0].center[1] +
+        ";" +
+        busStopAPIString +
+        "?access_token=" +
+        mapboxgl.accessToken
+    ).then(async (response) => {
+      const timeArray = await response.json();
+      timeArray.durations[0][0] = Infinity;
+      for (var i = 0; i < distancesFromStartingAddress.length; i++) {
+        distancesFromStartingAddress[i].time = timeArray.durations[0][i + 1];
+      }
+      distancesFromStartingAddress = distancesFromStartingAddress.sort(
+        (p1, p2) => p1.time - p2.time
+      );
+      return distancesFromStartingAddress;
+    });
+  }
+
+  async function onCalculateHandler() {
+    // Get addresses from input boxes
     const startingAddressArray = document
       .getElementById("startingAddress")
       .value.split(" ");
     const endingAddressArray = document
       .getElementById("endingAddress")
       .value.split(" ");
-    fetch(
+    // fetch lat and long for starting address
+    const startGeodata = await fetch(
       "https://api.mapbox.com/geocoding/v5/mapbox.places/" +
         startingAddressArray[0] +
         "%20" +
@@ -283,128 +321,231 @@ export default function Map() {
         startingAddressArray[3] +
         ".json?proximity=-82.83673382875219%2C34.676993908723304&access_token=" +
         mapboxgl.accessToken
+    ).then(async (data) => {
+      return data.json();
+    });
+
+    const endGeodata = await fetch(
+      "https://api.mapbox.com/geocoding/v5/mapbox.places/" +
+        endingAddressArray[0] +
+        "%20" +
+        endingAddressArray[1] +
+        "%20" +
+        endingAddressArray[2] +
+        "%20" +
+        endingAddressArray[3] +
+        ".json?proximity=-82.83673382875219%2C34.676993908723304&access_token=" +
+        mapboxgl.accessToken
+    ).then(async (data) => {
+      return data.json();
+    });
+
+    const startingTimeArray = await getNearestBusStops(startGeodata);
+    const endingTimeArray = await getNearestBusStops(endGeodata);
+
+    const [RouteID, startingStop, endingStop] = await chooseBestRoute(
+      startingTimeArray,
+      endingTimeArray
+    );
+
+    drawNavRoute(
+      startGeodata.features[0].center,
+      endGeodata.features[0].center,
+      startingStop,
+      endingStop,
+      RouteID
+    );
+  }
+
+  async function chooseBestRoute(startingArray, endingArray) {
+    var minTime = Infinity;
+    var minRouteID, minStartStop, minEndStop;
+    for (var i = 0; i < startingArray.length; i++) {
+      for (var j = 0; j < endingArray.length; j++) {
+        if (startingArray[i].stop.RouteID !== endingArray[j].stop.RouteID)
+          continue;
+
+        const busTime = await calculateBusRouteTime(
+          startingArray[i].stop.RouteID,
+          startingArray[i].stop.RouteStopID,
+          endingArray[j].stop.RouteStopID
+        );
+        const time = busTime + startingArray[i].time + endingArray[j].time;
+        if (time < minTime) {
+          minTime = time;
+          minRouteID = startingArray[i].stop.RouteID;
+          minStartStop = startingArray[i].stop;
+          minEndStop = endingArray[j].stop;
+        }
+      }
+    }
+    return [minRouteID, minStartStop, minEndStop];
+  }
+
+  // takes in a route ID, starting bus stop ID, and ending bus stop ID, and calculates the time to travel between them
+  // assumes the next bus available is taken
+  // Uses the catbus.ridesystems.net API, with ids taken from there
+  // Returns time between the two stops in milliseconds
+  async function calculateBusRouteTime(routeID, startingStopID, endingStopID) {
+    const time = await fetch(
+      "https://catbus.ridesystems.net/Services/JSONPRelay.svc/GetRouteStopArrivals"
     )
       .then((response) => response.json())
       .then((data) => {
-        let distancesFromStartingAddress = [];
-        Object.entries(busStops).map(([dataKey, dataValue]) => {
-          distancesFromStartingAddress.push([
-            Math.sqrt(
-              (data.features[0].center[1] - dataValue.coordinate.lat) ** 2 +
-                (data.features[0].center[0] - dataValue.coordinate.lng) ** 2
-            ),
-            dataValue.coordinate.lat,
-            dataValue.coordinate.lng,
-          ]);
-        });
-        distancesFromStartingAddress = distancesFromStartingAddress.sort(
-          (p1, p2) => (p1[0] < p2[0] ? 1 : p1[0] > p2[0] ? -1 : 0)
+        const startingStop = data.find(
+          (e) => e.RouteStopID === startingStopID && e.RouteID === routeID
         );
-        while (distancesFromStartingAddress.length > 24) {
-          distancesFromStartingAddress.shift();
-        }
-        let busStopAPIString = "";
-        for (let i = 0; i < distancesFromStartingAddress.length; i++) {
-          busStopAPIString +=
-            distancesFromStartingAddress[i][2] +
-            "," +
-            distancesFromStartingAddress[i][1];
-          if (i < distancesFromStartingAddress.length - 1) {
-            busStopAPIString += ";";
-          }
-        }
-        fetch(
-          "https://api.mapbox.com/directions-matrix/v1/mapbox/walking/" +
-            data.features[0].center[0] +
-            "," +
-            data.features[0].center[1] +
-            ";" +
-            busStopAPIString +
-            "?access_token=" +
-            mapboxgl.accessToken
-        )
-          .then((timeArrayResponse) => timeArrayResponse.json())
-          .then((timeArray) => {
-            timeArray.durations[0][0] = 9999999;
-            let nearestBusStopCoords =
-              timeArray.destinations[
-                timeArray.durations[0].indexOf(
-                  Math.min(...timeArray.durations[0])
-                )
-              ].location;
-            fetch(
-              "https://api.mapbox.com/geocoding/v5/mapbox.places/" +
-                endingAddressArray[0] +
-                "%20" +
-                endingAddressArray[1] +
-                "%20" +
-                endingAddressArray[2] +
-                "%20" +
-                endingAddressArray[3] +
-                ".json?proximity=-82.83673382875219%2C34.676993908723304&access_token=" +
-                mapboxgl.accessToken
-            )
-              .then((response2) => response2.json())
-              .then((data2) => {
-                fetch(
-                  "https://api.mapbox.com/directions/v5/mapbox/walking/" +
-                    data.features[0].center[0] +
-                    "%2C" +
-                    data.features[0].center[1] +
-                    "%3B" +
-                    nearestBusStopCoords[0] +
-                    "%2C" +
-                    nearestBusStopCoords[1] +
-                    "?alternatives=false&continue_straight=true&geometries=geojson&language=en&overview=simplified&steps=true&access_token=" +
-                    mapboxgl.accessToken
-                )
-                  .then((response) => response.json())
-                  .then((data3) => {
-                    if (map.current.getSource("route")) {
-                      map.current.getSource("route").setData({
-                        type: "Feature",
-                        properties: {},
-                        geometry: {
-                          type: "LineString",
-                          coordinates: data3.routes[0].geometry.coordinates,
-                        },
-                      });
-                    } else {
-                      map.current.addSource("route", {
-                        type: "geojson",
-                        data: {
-                          type: "Feature",
-                          properties: {},
-                          geometry: {
-                            type: "LineString",
-                            coordinates: data3.routes[0].geometry.coordinates,
-                          },
-                        },
-                      });
-                      map.current.addLayer({
-                        id: "route",
-                        type: "line",
-                        source: "route",
-                        layout: {
-                          "line-join": "round",
-                          "line-cap": "round",
-                        },
-                        paint: {
-                          "line-color": "#888",
-                          "line-width": 8,
-                        },
-                      });
-                    }
-                  })
-                  .catch((error) => console.log(error));
-              });
-          });
+        if (startingStop === undefined) return Infinity;
+        const busNum = startingStop.ScheduledTimes[0].AssignedVehicleId;
+        const departureTime = moment
+          .utc(startingStop.ScheduledTimes[0].DepartureTimeUTC)
+          .valueOf();
+
+        const endingStop = data.find(
+          (e) => e.RouteStopID === endingStopID && e.RouteID === routeID
+        );
+        if (endingStop === undefined) return Infinity;
+
+        const endStopSchedule = endingStop.ScheduledTimes.filter(
+          (e) => e.AssignedVehicleId === busNum
+        ).find((e) => moment.utc(e.ArrivalTimeUTC).valueOf() > departureTime);
+        if (endStopSchedule === undefined) return Infinity;
+
+        const arrivalTime = moment
+          .utc(endStopSchedule.ArrivalTimeUTC)
+          .valueOf();
+        const time = (arrivalTime - departureTime) / 1000.0;
+        return time;
       });
+    return time;
   }
 
-  calculateBusRouteTime(3, 202, 205).then((routeTime) => {
-    console.log("Route time in milliseconds: " + routeTime);
-  });
+  function drawNavRoute(start, end, busStop1, busStop2, busRoute) {
+    // console.log(start[0]);
+    // console.log(end);
+
+    let newSteps = [];
+
+    fetch(
+      "https://api.mapbox.com/directions/v5/mapbox/walking/" +
+        start[0] +
+        "%2C" +
+        start[1] +
+        "%3B" +
+        busStop1.Longitude +
+        "%2C" +
+        busStop1.Latitude +
+        "?alternatives=false&continue_straight=true&geometries=geojson&language=en&overview=simplified&steps=true&access_token=" +
+        mapboxgl.accessToken
+    )
+      .then((response) => response.json())
+      .then((data3) => {
+        // console.log(data3);
+
+        // draw path
+        if (map.current.getSource("route")) {
+          map.current.getSource("route").setData({
+            type: "Feature",
+            properties: {},
+            geometry: {
+              type: "LineString",
+              coordinates: data3.routes[0].geometry.coordinates,
+            },
+          });
+        } else {
+          map.current.addSource("route", {
+            type: "geojson",
+            data: {
+              type: "Feature",
+              properties: {},
+              geometry: {
+                type: "LineString",
+                coordinates: data3.routes[0].geometry.coordinates,
+              },
+            },
+          });
+          map.current.addLayer({
+            id: "route",
+            type: "line",
+            source: "route",
+            layout: {
+              "line-join": "round",
+              "line-cap": "round",
+            },
+            paint: {
+              "line-color": "#888",
+              "line-width": 8,
+            },
+          });
+        }
+
+        //add instructions
+        newSteps = data3.routes[0].legs[0].steps;
+        newSteps[newSteps.length - 1].maneuver.instruction = "Board the bus"; // TODO: give instructions for which bus to board
+
+        fetch(
+          "https://api.mapbox.com/directions/v5/mapbox/walking/" +
+            busStop2.Longitude +
+            "%2C" +
+            busStop2.Latitude +
+            "%3B" +
+            end[0] +
+            "%2C" +
+            end[1] +
+            "?alternatives=false&continue_straight=true&geometries=geojson&language=en&overview=simplified&steps=true&access_token=" +
+            mapboxgl.accessToken
+        )
+          .then((response) => response.json())
+          .then((data3) => {
+            // console.log(data3);
+
+            // draw path
+            if (map.current.getSource("route2")) {
+              map.current.getSource("route2").setData({
+                type: "Feature",
+                properties: {},
+                geometry: {
+                  type: "LineString",
+                  coordinates: data3.routes[0].geometry.coordinates,
+                },
+              });
+            } else {
+              map.current.addSource("route2", {
+                type: "geojson",
+                data: {
+                  type: "Feature",
+                  properties: {},
+                  geometry: {
+                    type: "LineString",
+                    coordinates: data3.routes[0].geometry.coordinates,
+                  },
+                },
+              });
+              map.current.addLayer({
+                id: "route2",
+                type: "line",
+                source: "route2",
+                layout: {
+                  "line-join": "round",
+                  "line-cap": "round",
+                },
+                paint: {
+                  "line-color": "#888",
+                  "line-width": 8,
+                },
+              });
+            }
+            //add instructions
+            newSteps.push({ maneuver: { instruction: "Get off at stop X" } });
+            // console.log(data3.routes[0].legs[0].steps);
+            newSteps = newSteps.concat(data3.routes[0].legs[0].steps);
+            // console.log(newSteps);
+            setSteps(newSteps);
+          })
+          .catch((error) => console.error(error));
+      })
+      .catch((error) => console.error(error));
+  }
 
   return (
     <div className="Map">
@@ -432,6 +573,7 @@ export default function Map() {
         />
       </div>
       <div ref={mapContainer} className="map-container" />
+      <Instructions props={steps} />
     </div>
   );
 }
