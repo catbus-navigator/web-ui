@@ -348,45 +348,14 @@ export default function Map() {
       startingTimeArray,
       endingTimeArray
     );
-
-    const [busRouteName, startingStopName, endingStopName] = await getRouteInfo(
-      RouteID,
-      startingStop,
-      endingStop
-    );
     
     drawNavRoute(
       startGeodata.features[0].center,
       endGeodata.features[0].center,
       startingStop,
       endingStop,
-      busRouteName,
-      startingStopName,
-      endingStopName
+      RouteID
     );
-  }
-
-  async function getRouteInfo(RouteID, startingStop, endingStop){
-    const busRouteInfo = await fetch(
-      "https://catbus.ridesystems.net/Services/JSONPRelay.svc/GetRoutesForMap"
-    )
-      .then((response) => response.json())
-      .then((data) => {
-        return data;
-      })
-    const busRouteName = busRouteInfo[RouteID-1].Description + " Route"
-    let i
-    let startingStopName;
-    let endingStopName;
-    for (i = 0; i < busRouteInfo[RouteID-1].Stops.length; i++){
-      if (busRouteInfo[RouteID-1].Stops[i].AddressID == startingStop.AddressID){
-        startingStopName = busRouteInfo[RouteID-1].Stops[i].Description;
-      }
-      else if (busRouteInfo[RouteID-1].Stops[i].AddressID == endingStop.AddressID){
-        endingStopName = busRouteInfo[RouteID-1].Stops[i].Description;
-      }
-    }
-    return [busRouteName, startingStopName, endingStopName]
   }
 
   async function chooseBestRoute(startingArray, endingArray) {
@@ -452,7 +421,7 @@ export default function Map() {
     return time;
   }
 
-  function drawNavRoute(start, end, busStop1, busStop2, busRouteName, busStop1Name, busStop2Name) {
+  function drawNavRoute(start, end, busStop1, busStop2, RouteID) {
     // console.log(start[0]);
     // console.log(end);
 
@@ -512,6 +481,14 @@ export default function Map() {
         }
 
         //add instructions
+        //Finds name of the bus route
+        let i
+        let busRouteName;
+        for (i = 0; i < busRoutes.length; i++){
+          if (busRoutes[i].RouteID == RouteID){
+           busRouteName = busRoutes[i].Description + " Route"
+          }
+        }
         newSteps = data3.routes[0].legs[0].steps;
         newSteps[newSteps.length - 1].maneuver.instruction = "Board the " + busRouteName
 
@@ -568,7 +545,7 @@ export default function Map() {
               });
             }
             //add instructions
-            newSteps.push({ maneuver: { instruction: "Get off at stop " + busStop2Name } });
+            newSteps.push({ maneuver: { instruction: "Get off at stop " + busStop2.Description } });
             // console.log(data3.routes[0].legs[0].steps);
             newSteps = newSteps.concat(data3.routes[0].legs[0].steps);
             // console.log(newSteps);
