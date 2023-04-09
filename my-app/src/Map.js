@@ -1,8 +1,11 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, Component } from 'react';
 import mapboxgl from '!mapbox-gl'; // eslint-disable-line import/no-webpack-loader-syntax
-import { AddressAutofill } from '@mapbox/search-js-react';
+import { AddressAutofill, SearchBox } from '@mapbox/search-js-react';
 import moment from 'moment';
-import MapboxGeocoder from '@mapbox/mapbox-gl-geocoder';
+import Autocomplete from "react-google-autocomplete";
+import { usePlacesWidget } from "react-google-autocomplete";
+
+let GOOGLE_MAPS_API_KEY = "AIzaSyDLTutlq0X1Lg92RaHUwYr0-fyI7Mi5GAA";
 
 moment().format();
 
@@ -49,13 +52,6 @@ export default function Map() {
 
     // Declare timerId using useRef
     const timerIdRef = useRef(null);
-
-    //map.addControl(
-    //    new MapboxGeocoder({
-    //        accessToken: mapboxgl.accessToken,
-    //        mapboxgl: mapboxgl
-    //    })
-    //);
 
     useEffect(() => {
         if (map.current) return; // initialize map only once
@@ -315,23 +311,45 @@ export default function Map() {
         console.log("Route time in milliseconds: " + routeTime)
     })
 
+    const { ref } = usePlacesWidget({
+        apiKey: GOOGLE_MAPS_API_KEY,
+        onPlaceSelected: (place) => console.log(place)
+    })
+
+    function createPlacesWidget() {
+        const input = document.getElementById("endingAddress");
+        const autocomplete = new window.google.maps.places.Autocomplete(input);
+        autocomplete.setFields(["address_components", "geometry", "name"]);
+        autocomplete.addListener("place_changed", () => {
+            const place = autocomplete.getPlace();
+            console.log(place);
+        });
+    }
+
+    useEffect(() => {
+        createPlacesWidget();
+    }, []);
+
     return (
         <div className='Map'>
-            <div style={{ marginRight: "75%" }}>
+
+            <div id="places-widget" style={{ marginRight: "75%" }}>
                 <form style={{ alignItems: "center", flexDirection: "column" }}>
                     <AddressAutofill accessToken={mapboxgl.accessToken}>
                         <input id="startingAddress" placeholder="Enter starting address.." name="startingAddress" autoComplete="shipping address-line1"></input>
                     </AddressAutofill>
+                   
                 </form>
                 <div ref={mapContainer} className="map-container" />
                 <form style={{ alignItems: "center", flexDirection: "column" }}>
                     <div id="searchbox-container" />
-                    <AddressAutofill accessToken={mapboxgl.accessToken}>
-                        <input type="text" placeholder="Enter ending address.." id="endingAddress" name="endingAddress"></input>
-                    </AddressAutofill>
+                        <AddressAutofill accessToken={mapboxgl.accessToken}>
+                            <input type="text" placeholder="Enter ending address.." id="endingAddress" name="endingAddress"></input>
+                        </AddressAutofill>
                 </form>
                 <input type="button" value="Get Bus Directions!" onClick={onCalculateHandler} />
             </div>
+            <div ref={mapContainer} className="map-container" />
         </div>
     );
 }
