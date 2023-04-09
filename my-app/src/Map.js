@@ -348,7 +348,7 @@ export default function Map() {
       startingTimeArray,
       endingTimeArray
     );
-    
+
     drawNavRoute(
       startGeodata.features[0].center,
       endGeodata.features[0].center,
@@ -482,15 +482,16 @@ export default function Map() {
 
         //add instructions
         //Finds name of the bus route
-        let i
+        let i;
         let busRouteName;
-        for (i = 0; i < busRoutes.length; i++){
-          if (busRoutes[i].RouteID == RouteID){
-           busRouteName = busRoutes[i].Description + " Route"
+        for (i = 0; i < busRoutes.length; i++) {
+          if (busRoutes[i].RouteID == RouteID) {
+            busRouteName = busRoutes[i].Description + " Route";
           }
         }
         newSteps = data3.routes[0].legs[0].steps;
-        newSteps[newSteps.length - 1].maneuver.instruction = "Board the " + busRouteName
+        newSteps[newSteps.length - 1].maneuver.instruction =
+          "Board the " + busRouteName;
 
         fetch(
           "https://api.mapbox.com/directions/v5/mapbox/walking/" +
@@ -545,7 +546,11 @@ export default function Map() {
               });
             }
             //add instructions
-            newSteps.push({ maneuver: { instruction: "Get off at stop " + busStop2.Description } });
+            newSteps.push({
+              maneuver: {
+                instruction: "Get off at stop " + busStop2.Description,
+              },
+            });
             // console.log(data3.routes[0].legs[0].steps);
             newSteps = newSteps.concat(data3.routes[0].legs[0].steps);
             // console.log(newSteps);
