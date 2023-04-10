@@ -60,13 +60,144 @@ export default function Map() {
       })
     );
 
-    const popup = new mapboxgl.Popup({
-      closeButton: true,
-      closeOnClick: true,
-    });
-
-    setPopup(popup);
   }, []);
+
+
+  useEffect(()=>{
+    addMarkerAndPopup()
+  }, [busStops])
+
+  const addMarkerAndPopup = () => {
+
+    Object.entries(busStops).map(([key, value]) => {
+
+      const busCoordinates = [value.coordinate.lng, value.coordinate.lat];
+
+      const marker = getCustomMarker();
+
+      marker.setLngLat(busCoordinates);
+      marker.addTo(map.current);
+
+      addClickEventListenerToMarker(marker, key, value);
+
+    })
+
+  }
+
+  const addClickEventListenerToMarker = async (marker, key, value) => {
+
+    marker.getElement().addEventListener('click', async () => {
+
+      const estimatedArrivalTime = await getEstimatedArrivalTime(key, value);
+
+      // Remove any previously opened popups
+      const popups = document.querySelectorAll('.mapboxgl-popup');
+
+      if (popups) popups.forEach(popup => popup.remove());
+
+      const lngLat = marker.getLngLat();
+
+      const popup = new mapboxgl.Popup({closeOnClick: false})
+          .setLngLat(lngLat)
+          .setHTML(estimatedArrivalTime)
+          .addTo(map.current);
+
+      // Update the popup text randomly every 10 seconds
+      const popupInterval = setInterval(async () => {
+        //const popupText = `New popup text: ${Math.random()}`;
+        const estimatedArrivalTime = await getEstimatedArrivalTime(key, value);
+        popup.setHTML(estimatedArrivalTime);
+      }, 10000);
+
+      popup.on('close', () => {
+        clearInterval(popupInterval);
+      });
+    })
+
+  }
+
+  const getCustomMarker = () => {
+        // Define the marker styling
+        const markerEl = document.createElement("div");
+        markerEl.style.background = "red";
+        markerEl.style.border = "4px solid black";
+        markerEl.style.width = "15px";
+        markerEl.style.height = "15px";
+        markerEl.style.borderRadius = "50%";
+
+        // Create a new marker with the custom styling
+        return new mapboxgl.Marker({
+          element: markerEl,
+          anchor: "center",
+        })
+  }
+
+
+  const getEstimatedArrivalTime = async (key, value) => {
+    //console.log("updatePopupInformation method called")
+
+    const routeColorMap = {
+      Red: "red",
+      Blue: "blue",
+      Green: "green",
+      // add more routes and colors here
+    };
+
+    let description = `<div style="width: 180px;"><h3>${value.name}</h3></div>`;
+
+    try {
+      const response = await fetch(
+          "https://api-my.app.clemson.edu/api/v0/map/bus/arrivals/" + key
+      );
+      const data = await response.json();
+
+      if (busRoutesMap[key] === undefined) busRoutesMap[key] = [];
+
+      busRoutesMap[key].forEach((busRoutesData) => {
+        Object.entries(data).map(([arrivalTimeDataKey, arrivalTimeDataValue]) => {
+          if (busRoutesData.route_id !== arrivalTimeDataKey) return;
+
+          let timeDiffInMinutes = Number.MAX_SAFE_INTEGER;
+
+          arrivalTimeDataValue.forEach((arrivalTimeObj) => {
+            // get the current time
+            const currentTime = new Date();
+
+            // parse the arrival time from the API response
+            const arrivalTime = new Date(arrivalTimeObj["arrival"]);
+
+            // calculate the difference between the arrival time and the current time
+            const timeDiff = arrivalTime.getTime() - currentTime.getTime();
+
+            // convert the time difference from milliseconds to minutes
+            const currentTimeDiffInMinutes = Math.round(timeDiff / 1000 / 60);
+
+            if (currentTimeDiffInMinutes > 0) {
+              timeDiffInMinutes = Math.min(
+                  currentTimeDiffInMinutes,
+                  timeDiffInMinutes
+              );
+            }
+          });
+
+          description +=
+              `<hr/><div style="display:flex; align-items:center;">` +
+              `<div style="background-color:${
+                  routeColorMap[busRoutesData.name]
+              }; border-radius:50%; width:10px; height:10px; margin-right:5px;"></div>` +
+              `<div><b>${busRoutesData.name}</b></div>` +
+              `<div style="margin-left:auto;">${timeDiffInMinutes} minutes</div>` +
+              `</div>`;
+        });
+      });
+    } catch (error) {
+      console.error(error);
+    }
+
+    return description;
+  }
+
+
 
   // Effect hook to fetch the bus routes data from the API
   useEffect(() => {
@@ -101,146 +232,6 @@ export default function Map() {
       })
       .catch((error) => console.log(error));
   }, []);
-
-  // Effect hook to update bustops on the boxmap
-  useEffect(() => {
-    const routeColorMap = {
-      Red: "red",
-      Blue: "blue",
-      Green: "green",
-      // add more routes and colors here
-    };
-
-    Object.entries(busStops).map(([key, value]) => {
-      const busCoordinates = [value.coordinate.lng, value.coordinate.lat];
-
-      // Define the marker styling
-      const markerEl = document.createElement("div");
-      markerEl.style.background = "red";
-      markerEl.style.border = "4px solid black";
-      markerEl.style.width = "10px";
-      markerEl.style.height = "10px";
-      markerEl.style.borderRadius = "50%";
-
-      // Create a new marker with the custom styling
-      const marker = new mapboxgl.Marker({
-        element: markerEl,
-        anchor: "center",
-      })
-        .setLngLat(busCoordinates)
-        .addTo(map.current);
-
-      const updatePopupInformation = () => {
-        //console.log("updatePopupInformation method called")
-
-        let description = `<div style="width: 180px;"><h3>${value.name}</h3></div>`;
-
-        fetch("https://api-my.app.clemson.edu/api/v0/map/bus/arrivals/" + key)
-          .then((response) => response.json())
-          .then((data) => {
-            // console.log("data", data, key);
-
-            if (busRoutesMap[key] == undefined) busRoutesMap[key] = [];
-
-            busRoutesMap[key].forEach((busRoutesData) => {
-              Object.entries(data).map(
-                ([arrivalTimeDataKey, arrivalTimeDataValue]) => {
-                  //console.log("popup data: ", arrivalTimeDataValue, arrivalTimeDataKey, key, busRoutesData.route_id)
-
-                  if (busRoutesData.route_id != arrivalTimeDataKey) return;
-
-                  let timeDiffInMinutes = Number.MAX_SAFE_INTEGER;
-
-                  arrivalTimeDataValue.forEach((arrivalTimeObj) => {
-                    // console.log(
-                    //   "forEach Loop: ",
-                    //   arrivalTimeDataValue,
-                    //   timeDiffInMinutes,
-                    //   arrivalTimeObj
-                    // );
-
-                    // get the current time
-                    const currentTime = new Date();
-
-                    // parse the arrival time from the API response
-                    const arrivalTime = new Date(arrivalTimeObj["arrival"]);
-
-                    // calculate the difference between the arrival time and the current time
-                    const timeDiff =
-                      arrivalTime.getTime() - currentTime.getTime();
-
-                    // convert the time difference from milliseconds to minutes
-                    const currentTimeDiffInMinutes = Math.round(
-                      timeDiff / 1000 / 60
-                    );
-
-                    // console.log(
-                    //   "timeDiffInMinutes1: ",
-                    //   currentTimeDiffInMinutes,
-                    //   timeDiffInMinutes
-                    // );
-
-                    if (currentTimeDiffInMinutes > 0) {
-                      timeDiffInMinutes = Math.min(
-                        currentTimeDiffInMinutes,
-                        timeDiffInMinutes
-                      );
-                    }
-
-                    // console.log(
-                    //   "timeDiffInMinutes2: ",
-                    //   currentTimeDiffInMinutes,
-                    //   timeDiffInMinutes
-                    // );
-                  });
-
-                  description +=
-                    `<hr/><div style="display:flex; align-items:center;">` +
-                    `<div style="background-color:${
-                      routeColorMap[busRoutesData.name]
-                    }; border-radius:50%; width:10px; height:10px; margin-right:5px;"></div>` +
-                    `<div><b>${busRoutesData.name}</b></div>` +
-                    `<div style="margin-left:auto;">${timeDiffInMinutes} minutes</div>` +
-                    `</div>`;
-                }
-              );
-            });
-
-            // Change the cursor style as a UI indicator.
-            map.current.getCanvas().style.cursor = "pointer";
-
-            // Populate the popup and set its coordinates
-            // based on the feature found.
-            if (popup.isOpen()) {
-              console.log("popup is open: ", description);
-
-              popup.setHTML(description);
-            } else {
-              console.log("popup is open else: ", description);
-              popup
-                .setLngLat(busCoordinates)
-                .setHTML(description)
-                .addTo(map.current);
-            }
-          })
-          .catch((error) => console.error(error));
-      };
-
-      markerEl.addEventListener("click", function () {
-        updatePopupInformation();
-        // Use setInterval() to update the content of the popup every 10 seconds
-        timerIdRef.current = setInterval(() => {
-          console.log("Set Intervals");
-          updatePopupInformation();
-        }, 10000);
-
-        // popup.on('close', () => {
-        //     console.log("clicked on popupclose eveent", timerIdRef.current);
-        //     clearInterval(timerIdRef.current);
-        // });
-      });
-    });
-  }, [busStops]);
 
   async function getNearestBusStops(data) {
     let distancesFromStartingAddress = [];
