@@ -231,7 +231,7 @@ export default function Map() {
           setBusRoutesMap(map);
         });
       })
-      .catch((error) => console.log(error));
+      .catch((error) => console.error(error));
   }, []);
 
   async function getNearestBusStops(data) {
@@ -391,6 +391,7 @@ export default function Map() {
           (e) => e.RouteStopID === startingStopID && e.RouteID === routeID
         );
         if (startingStop === undefined) return Infinity;
+        if (!startingStop.ScheduledTimes[0]) return Infinity;
         const busNum = startingStop.ScheduledTimes[0].AssignedVehicleId;
         const departureTime = moment
           .utc(startingStop.ScheduledTimes[0].DepartureTimeUTC)
@@ -416,8 +417,6 @@ export default function Map() {
   }
 
   function drawNavRoute(start, end, busStop1, busStop2, RouteID) {
-    // console.log(start[0]);
-    // console.log(end);
 
     let newSteps = [];
 
@@ -473,19 +472,74 @@ export default function Map() {
             },
           });
         }
-
         //add instructions
         //Finds name of the bus route
         let i;
         let busRouteName;
+        let busRouteIndex;
         for (i = 0; i < busRoutes.length; i++) {
           if (busRoutes[i].RouteID == RouteID) {
             busRouteName = busRoutes[i].Description + " Route";
+            busRouteIndex = i
           }
         }
         newSteps = data3.routes[0].legs[0].steps;
         newSteps[newSteps.length - 1].maneuver.instruction =
           "Board the " + busRouteName;
+        
+          //add busroutes visualization
+        let busRouteCoordinates = []
+        busRouteCoordinates.push([busStop1.Longitude, busStop1.Latitude])
+        let j;
+        for (j = 0; j < busRoutes[busRouteIndex].Stops.length; j++){
+          if (busRoutes[busRouteIndex].Stops[j].AddressID == busStop1.AddressID){
+            while (busRoutes[busRouteIndex].Stops[j].AddressID != busStop2.AddressID){
+              let k;
+              for (k = 0; k < busRoutes[busRouteIndex].Stops[j].MapPoints.length; k++){
+                busRouteCoordinates.push([busRoutes[busRouteIndex].Stops[j].MapPoints[k].Longitude, busRoutes[busRouteIndex].Stops[j].MapPoints[k].Latitude])
+              }
+              j += 1
+            }
+          }
+        }
+        busRouteCoordinates.push([busStop2.Longitude, busStop2.Latitude])
+        //add busroute path
+        if (map.current.getSource("busRoute")) {
+          map.current.getSource("busRoute").setData({
+            type: "Feature",
+            properties: {},
+            geometry: {
+              type: "LineString",
+              coordinates: busRouteCoordinates,
+            },
+          });
+        } else {
+          map.current.addSource("busRoute", {
+            type: "geojson",
+            data: {
+              type: "Feature",
+              properties: {},
+              geometry: {
+                type: "LineString",
+                coordinates: busRouteCoordinates,
+              },
+            },
+          });
+          map.current.addLayer({
+            id: "busRoute",
+            type: "line",
+            source: "busRoute",
+            layout: {
+              "line-join": "round",
+              "line-cap": "round",
+            },
+            paint: {
+              "line-color": "#bd0026",
+              "line-width": 8,
+            },
+          });
+        }
+
 
         fetch(
           "https://api.mapbox.com/directions/v5/mapbox/walking/" +
@@ -539,6 +593,7 @@ export default function Map() {
                 },
               });
             }
+
             //add instructions
             newSteps.push({
               maneuver: {
