@@ -60,18 +60,14 @@ export default function Map() {
         },
       })
     );
-
   }, []);
 
-
-  useEffect(()=>{
-    addMarkerAndPopup()
-  }, [busStops])
+  useEffect(() => {
+    addMarkerAndPopup();
+  }, [busStops]);
 
   const addMarkerAndPopup = () => {
-
     Object.entries(busStops).map(([key, value]) => {
-
       const busCoordinates = [value.coordinate.lng, value.coordinate.lat];
 
       const marker = getCustomMarker();
@@ -80,28 +76,24 @@ export default function Map() {
       marker.addTo(map.current);
 
       addClickEventListenerToMarker(marker, key, value);
-
-    })
-
-  }
+    });
+  };
 
   const addClickEventListenerToMarker = async (marker, key, value) => {
-
-    marker.getElement().addEventListener('click', async () => {
-
+    marker.getElement().addEventListener("click", async () => {
       const estimatedArrivalTime = await getEstimatedArrivalTime(key, value);
 
       // Remove any previously opened popups
-      const popups = document.querySelectorAll('.mapboxgl-popup');
+      const popups = document.querySelectorAll(".mapboxgl-popup");
 
-      if (popups) popups.forEach(popup => popup.remove());
+      if (popups) popups.forEach((popup) => popup.remove());
 
       const lngLat = marker.getLngLat();
 
-      const popup = new mapboxgl.Popup({closeOnClick: false})
-          .setLngLat(lngLat)
-          .setHTML(estimatedArrivalTime)
-          .addTo(map.current);
+      const popup = new mapboxgl.Popup({ closeOnClick: false })
+        .setLngLat(lngLat)
+        .setHTML(estimatedArrivalTime)
+        .addTo(map.current);
 
       // Update the popup text randomly every 10 seconds
       const popupInterval = setInterval(async () => {
@@ -110,29 +102,27 @@ export default function Map() {
         popup.setHTML(estimatedArrivalTime);
       }, 10000);
 
-      popup.on('close', () => {
+      popup.on("close", () => {
         clearInterval(popupInterval);
       });
-    })
-
-  }
+    });
+  };
 
   const getCustomMarker = () => {
-        // Define the marker styling
-        const markerEl = document.createElement("div");
-        markerEl.style.background = "red";
-        markerEl.style.border = "4px solid black";
-        markerEl.style.width = "15px";
-        markerEl.style.height = "15px";
-        markerEl.style.borderRadius = "50%";
+    // Define the marker styling
+    const markerEl = document.createElement("div");
+    markerEl.style.background = "red";
+    markerEl.style.border = "4px solid black";
+    markerEl.style.width = "15px";
+    markerEl.style.height = "15px";
+    markerEl.style.borderRadius = "50%";
 
-        // Create a new marker with the custom styling
-        return new mapboxgl.Marker({
-          element: markerEl,
-          anchor: "center",
-        })
-  }
-
+    // Create a new marker with the custom styling
+    return new mapboxgl.Marker({
+      element: markerEl,
+      anchor: "center",
+    });
+  };
 
   const getEstimatedArrivalTime = async (key, value) => {
     //console.log("updatePopupInformation method called")
@@ -148,57 +138,57 @@ export default function Map() {
 
     try {
       const response = await fetch(
-          "https://api-my.app.clemson.edu/api/v0/map/bus/arrivals/" + key
+        "https://api-my.app.clemson.edu/api/v0/map/bus/arrivals/" + key
       );
       const data = await response.json();
 
       if (busRoutesMap[key] === undefined) busRoutesMap[key] = [];
 
       busRoutesMap[key].forEach((busRoutesData) => {
-        Object.entries(data).map(([arrivalTimeDataKey, arrivalTimeDataValue]) => {
-          if (busRoutesData.route_id !== arrivalTimeDataKey) return;
+        Object.entries(data).map(
+          ([arrivalTimeDataKey, arrivalTimeDataValue]) => {
+            if (busRoutesData.route_id !== arrivalTimeDataKey) return;
 
-          let timeDiffInMinutes = Number.MAX_SAFE_INTEGER;
+            let timeDiffInMinutes = Number.MAX_SAFE_INTEGER;
 
-          arrivalTimeDataValue.forEach((arrivalTimeObj) => {
-            // get the current time
-            const currentTime = new Date();
+            arrivalTimeDataValue.forEach((arrivalTimeObj) => {
+              // get the current time
+              const currentTime = new Date();
 
-            // parse the arrival time from the API response
-            const arrivalTime = new Date(arrivalTimeObj["arrival"]);
+              // parse the arrival time from the API response
+              const arrivalTime = new Date(arrivalTimeObj["arrival"]);
 
-            // calculate the difference between the arrival time and the current time
-            const timeDiff = arrivalTime.getTime() - currentTime.getTime();
+              // calculate the difference between the arrival time and the current time
+              const timeDiff = arrivalTime.getTime() - currentTime.getTime();
 
-            // convert the time difference from milliseconds to minutes
-            const currentTimeDiffInMinutes = Math.round(timeDiff / 1000 / 60);
+              // convert the time difference from milliseconds to minutes
+              const currentTimeDiffInMinutes = Math.round(timeDiff / 1000 / 60);
 
-            if (currentTimeDiffInMinutes > 0) {
-              timeDiffInMinutes = Math.min(
+              if (currentTimeDiffInMinutes > 0) {
+                timeDiffInMinutes = Math.min(
                   currentTimeDiffInMinutes,
                   timeDiffInMinutes
-              );
-            }
-          });
+                );
+              }
+            });
 
-          description +=
+            description +=
               `<hr/><div style="display:flex; align-items:center;">` +
               `<div style="background-color:${
-                  routeColorMap[busRoutesData.name]
+                routeColorMap[busRoutesData.name]
               }; border-radius:50%; width:10px; height:10px; margin-right:5px;"></div>` +
               `<div><b>${busRoutesData.name}</b></div>` +
               `<div style="margin-left:auto;">${timeDiffInMinutes} minutes</div>` +
               `</div>`;
-        });
+          }
+        );
       });
     } catch (error) {
       console.error(error);
     }
 
     return description;
-  }
-
-
+  };
 
   // Effect hook to fetch the bus routes data from the API
   useEffect(() => {
@@ -417,7 +407,6 @@ export default function Map() {
   }
 
   function drawNavRoute(start, end, busStop1, busStop2, RouteID) {
-
     let newSteps = [];
 
     fetch(
@@ -480,29 +469,40 @@ export default function Map() {
         for (i = 0; i < busRoutes.length; i++) {
           if (busRoutes[i].RouteID == RouteID) {
             busRouteName = busRoutes[i].Description + " Route";
-            busRouteIndex = i
+            busRouteIndex = i;
           }
         }
         newSteps = data3.routes[0].legs[0].steps;
         newSteps[newSteps.length - 1].maneuver.instruction =
           "Board the " + busRouteName;
-        
-          //add busroutes visualization
-        let busRouteCoordinates = []
-        busRouteCoordinates.push([busStop1.Longitude, busStop1.Latitude])
+
+        //add busroutes visualization
+        let busRouteCoordinates = [];
+        busRouteCoordinates.push([busStop1.Longitude, busStop1.Latitude]);
         let j;
-        for (j = 0; j < busRoutes[busRouteIndex].Stops.length; j++){
-          if (busRoutes[busRouteIndex].Stops[j].AddressID == busStop1.AddressID){
-            while (busRoutes[busRouteIndex].Stops[j].AddressID != busStop2.AddressID){
+        for (j = 0; j < busRoutes[busRouteIndex].Stops.length; j++) {
+          if (
+            busRoutes[busRouteIndex].Stops[j].AddressID == busStop1.AddressID
+          ) {
+            while (
+              busRoutes[busRouteIndex].Stops[j].AddressID != busStop2.AddressID
+            ) {
               let k;
-              for (k = 0; k < busRoutes[busRouteIndex].Stops[j].MapPoints.length; k++){
-                busRouteCoordinates.push([busRoutes[busRouteIndex].Stops[j].MapPoints[k].Longitude, busRoutes[busRouteIndex].Stops[j].MapPoints[k].Latitude])
+              for (
+                k = 0;
+                k < busRoutes[busRouteIndex].Stops[j].MapPoints.length;
+                k++
+              ) {
+                busRouteCoordinates.push([
+                  busRoutes[busRouteIndex].Stops[j].MapPoints[k].Longitude,
+                  busRoutes[busRouteIndex].Stops[j].MapPoints[k].Latitude,
+                ]);
               }
-              j += 1
+              j += 1;
             }
           }
         }
-        busRouteCoordinates.push([busStop2.Longitude, busStop2.Latitude])
+        busRouteCoordinates.push([busStop2.Longitude, busStop2.Latitude]);
         //add busroute path
         if (map.current.getSource("busRoute")) {
           map.current.getSource("busRoute").setData({
@@ -539,7 +539,6 @@ export default function Map() {
             },
           });
         }
-
 
         fetch(
           "https://api.mapbox.com/directions/v5/mapbox/walking/" +
