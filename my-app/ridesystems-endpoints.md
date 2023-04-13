@@ -18,3 +18,6 @@ Get capacities
 
 Get stop arrival times
 `GetStopArrivalTimes?stopIds={stop_id}`
+
+MY.CLEMSON Get all route geometry coordinates:
+`https://api-my.app.clemson.edu/api/v0/map/bus/routes`
