@@ -489,30 +489,33 @@ export default function Map() {
         console.log(busStop1, busStop2);
         let busRouteCoordinates = [];
         busRouteCoordinates.push([busStop1.Longitude, busStop1.Latitude]);
+        console.log(busRoutes);
         //TODO: fix bus route navigation
-        // let j;
-        // for (j = 0; j < busRoutes[busRouteIndex].Stops.length; j++) {
-        //   if (
-        //     busRoutes[busRouteIndex].Stops[j].AddressID == busStop1.AddressID
-        //   ) {
-        //     while (
-        //       busRoutes[busRouteIndex].Stops[j].AddressID != busStop2.AddressID
-        //     ) {
-        //       let k;
-        //       for (
-        //         k = 0;
-        //         k < busRoutes[busRouteIndex].Stops[j].MapPoints.length;
-        //         k++
-        //       ) {
-        //         busRouteCoordinates.push([
-        //           busRoutes[busRouteIndex].Stops[j].MapPoints[k].Longitude,
-        //           busRoutes[busRouteIndex].Stops[j].MapPoints[k].Latitude,
-        //         ]);
-        //       }
-        //       j += 1;
-        //     }
-        //   }
-        // }
+        let j;
+        for (j = 0; j < busRoutes[busRouteIndex].Stops.length; j++) {
+          console.log(busRoutes[busRouteIndex]);
+          if (
+            busRoutes[busRouteIndex].Stops[j].AddressID === busStop1.AddressID
+          ) {
+            while (
+              j < busRoutes[busRouteIndex].Stops.length &&
+              busRoutes[busRouteIndex].Stops[j].AddressID !== busStop2.AddressID
+            ) {
+              let k;
+              for (
+                k = 0;
+                k < busRoutes[busRouteIndex].Stops[j].MapPoints.length;
+                k++
+              ) {
+                busRouteCoordinates.push([
+                  busRoutes[busRouteIndex].Stops[j].MapPoints[k].Longitude,
+                  busRoutes[busRouteIndex].Stops[j].MapPoints[k].Latitude,
+                ]);
+              }
+              j += 1;
+            }
+          }
+        }
         busRouteCoordinates.push([busStop2.Longitude, busStop2.Latitude]);
         //add busroute path
         if (map.current.getSource("busRoute")) {
