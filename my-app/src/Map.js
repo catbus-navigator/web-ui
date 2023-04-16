@@ -242,9 +242,13 @@ export default function Map() {
         }
       });
       distancesForRoute = distancesForRoute.sort((p1, p2) => p1.dist - p2.dist);
-      for (let i = 0; i < Math.min(3, distancesForRoute.length); i++) {
-        distancesFromStartingAddress.push(distancesForRoute[i]);
-      }
+      // console.log("DFR", distancesForRoute);
+      // for (let i = 0; i < Math.min(2, distancesForRoute.length); i++) {
+      if (distancesForRoute[0])
+        distancesFromStartingAddress.push(distancesForRoute[0]);
+      // if (distancesForRoute[1])
+      //   distancesFromStartingAddress.push(distancesForRoute[1]);
+      // }
     });
     distancesFromStartingAddress = distancesFromStartingAddress.sort(
       (p1, p2) => p1.dist - p2.dist
@@ -261,8 +265,9 @@ export default function Map() {
         busStopAPIString += ";";
       }
     }
+    console.log(distancesFromStartingAddress);
 
-    // console.log(distancesFromStartingAddress);
+    // return 0;
 
     return fetch(
       "https://api.mapbox.com/directions-matrix/v1/mapbox/walking/" +
@@ -346,6 +351,7 @@ export default function Map() {
   async function chooseBestRoute(startingArray, endingArray) {
     var minTime = Infinity;
     var minRouteID, minStartStop, minEndStop;
+    console.log(startingArray, endingArray);
     for (var i = 0; i < startingArray.length; i++) {
       for (var j = 0; j < endingArray.length; j++) {
         if (startingArray[i].stop.RouteID !== endingArray[j].stop.RouteID)
@@ -357,6 +363,7 @@ export default function Map() {
           endingArray[j].stop.RouteStopID
         );
         const time = busTime + startingArray[i].time + endingArray[j].time;
+        console.log(time);
         if (time < minTime) {
           minTime = time;
           minRouteID = startingArray[i].stop.RouteID;
@@ -365,6 +372,7 @@ export default function Map() {
         }
       }
     }
+    console.log(minRouteID, minStartStop, minEndStop);
     return [minRouteID, minStartStop, minEndStop];
   }
 
@@ -409,7 +417,7 @@ export default function Map() {
 
   function drawNavRoute(start, end, busStop1, busStop2, RouteID) {
     let newSteps = [];
-
+    console.log(busStop1);
     fetch(
       "https://api.mapbox.com/directions/v5/mapbox/walking/" +
         start[0] +
@@ -478,31 +486,33 @@ export default function Map() {
           "Board the " + busRouteName;
 
         //add busroutes visualization
+        console.log(busStop1, busStop2);
         let busRouteCoordinates = [];
         busRouteCoordinates.push([busStop1.Longitude, busStop1.Latitude]);
-        let j;
-        for (j = 0; j < busRoutes[busRouteIndex].Stops.length; j++) {
-          if (
-            busRoutes[busRouteIndex].Stops[j].AddressID == busStop1.AddressID
-          ) {
-            while (
-              busRoutes[busRouteIndex].Stops[j].AddressID != busStop2.AddressID
-            ) {
-              let k;
-              for (
-                k = 0;
-                k < busRoutes[busRouteIndex].Stops[j].MapPoints.length;
-                k++
-              ) {
-                busRouteCoordinates.push([
-                  busRoutes[busRouteIndex].Stops[j].MapPoints[k].Longitude,
-                  busRoutes[busRouteIndex].Stops[j].MapPoints[k].Latitude,
-                ]);
-              }
-              j += 1;
-            }
-          }
-        }
+        //TODO: fix bus route navigation
+        // let j;
+        // for (j = 0; j < busRoutes[busRouteIndex].Stops.length; j++) {
+        //   if (
+        //     busRoutes[busRouteIndex].Stops[j].AddressID == busStop1.AddressID
+        //   ) {
+        //     while (
+        //       busRoutes[busRouteIndex].Stops[j].AddressID != busStop2.AddressID
+        //     ) {
+        //       let k;
+        //       for (
+        //         k = 0;
+        //         k < busRoutes[busRouteIndex].Stops[j].MapPoints.length;
+        //         k++
+        //       ) {
+        //         busRouteCoordinates.push([
+        //           busRoutes[busRouteIndex].Stops[j].MapPoints[k].Longitude,
+        //           busRoutes[busRouteIndex].Stops[j].MapPoints[k].Latitude,
+        //         ]);
+        //       }
+        //       j += 1;
+        //     }
+        //   }
+        // }
         busRouteCoordinates.push([busStop2.Longitude, busStop2.Latitude]);
         //add busroute path
         if (map.current.getSource("busRoute")) {
