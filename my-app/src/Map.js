@@ -4,6 +4,9 @@ import { AddressAutofill } from "@mapbox/search-js-react";
 import moment from "moment";
 import Instructions from "./Instructions";
 import { resolveConfig } from "prettier";
+
+import {lineString} from '@turf/turf';
+
 moment().format();
 
 mapboxgl.accessToken = process.env.REACT_APP_MAPBOX_KEY;
@@ -20,8 +23,6 @@ export default function Map() {
 
   const [busRoutesMap, setBusRoutesMap] = useState({});
 
-  const [popup, setPopup] = useState(null);
-
   const [steps, setSteps] = useState([]);
 
   // Declare timerId using useRef
@@ -35,6 +36,9 @@ export default function Map() {
       center: [lng, lat],
       zoom: zoom,
     });
+
+    // Initialize the data for busstop and bus route
+    initializeBusStopAndRouteData();
 
     // Add navigation control to the map
     map.current.addControl(
@@ -190,39 +194,100 @@ export default function Map() {
     return description;
   };
 
-  // Effect hook to fetch the bus routes data from the API
-  useEffect(() => {
-    fetch(
-      "https://catbus.ridesystems.net/Services/JSONPRelay.svc/GetRoutesForMap"
-    )
-      .then((response) => response.json())
-      .then((data) => {
-        setBusRoutes(data);
+  useEffect( () => {
+
+    Object.entries(busRoutesMap).forEach(([key, value]) => {
+
+      let route = [];
+
+      value[0]['polyline'][0].forEach(stop => {
+        route.push([stop['lng'], stop['lat']]);
       })
-      .catch((error) => console.error(error));
+
+      addRoute(key, getRandomDarkColor(), route)
+
+    })
+  }, [busRoutes])
+
+
+  const getRandomDarkColor = () => {
+    // Generate random red, green, and blue values between 0 and 128
+    const r = Math.floor(Math.random() * 128);
+    const g = Math.floor(Math.random() * 128);
+    const b = Math.floor(Math.random() * 128);
+
+    // Convert the values to a hex string
+    const hex = ((r << 16) | (g << 8) | b).toString(16);
+
+    // Return the hex string
+    return "#" + ("000000" + hex).slice(-6);
+  }
+
+  const addRoute = (routeId, color, route) => {
+
+    // Remove existing layer and source if it exists
+    if (map.current.getLayer(routeId)) {
+      map.current.removeLayer(routeId);
+    }
+    if (map.current.getSource(routeId)) {
+      map.current.removeSource(routeId);
+    }
+
+    const linestringData = lineString(route);
+
+    map.current.addLayer({
+      "id": routeId,
+      "type": "line",
+      "source": {
+        "type": "geojson",
+        "data": linestringData
+      },
+      "layout": {
+        "line-join": "round",
+        "line-cap": "round"
+      },
+      "paint": {
+        "line-color": color,
+        "line-width": 5
+      }
+
+    });
+  }
+
+  // Effect hook to fetch the bus routes data from the API
+  const initializeBusStopAndRouteData = () => {
+    fetch(
+        "https://catbus.ridesystems.net/Services/JSONPRelay.svc/GetRoutesForMap"
+    )
+        .then((response) => response.json())
+        .then((data) => {
+          setBusRoutes(data);
+          console.log("setBusRoutes: ", data)
+        })
+        .catch((error) => console.error(error));
 
     fetch("https://api-my.app.clemson.edu/api/v0/map/bus/routes")
-      .then((response) => response.json())
-      .then((data) => {
-        setBusStops(data.stops);
-        let map = {};
+        .then((response) => response.json())
+        .then((data) => {
+          setBusStops(data.stops);
+          let map = {};
 
-        Object.entries(data.routes).map(([key, value]) => {
-          value.stops.forEach((stop) => {
-            value["route_id"] = key;
+          Object.entries(data.routes).map(([key, value]) => {
+            value.stops.forEach((stop) => {
+              value["route_id"] = key;
 
-            if (map[stop] == undefined) {
-              map[stop] = [];
-            }
+              if (map[stop] == undefined) {
+                map[stop] = [];
+              }
 
-            map[stop].push(value);
+              map[stop].push(value);
+            });
+
+            setBusRoutesMap(map);
           });
-
-          setBusRoutesMap(map);
-        });
-      })
-      .catch((error) => console.error(error));
-  }, []);
+        })
+        .catch((error) => console.error(error));
+  }
 
   async function getNearestBusStops(data) {
     let distancesFromStartingAddress = [];
