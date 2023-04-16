@@ -250,7 +250,7 @@ export default function Map() {
       (p1, p2) => p1.dist - p2.dist
     );
     // console.log(distancesFromStartingAddress);
-    distancesFromStartingAddress.splice(24);
+    distancesFromStartingAddress.splice(10);
     let busStopAPIString = "";
     for (let i = 0; i < distancesFromStartingAddress.length; i++) {
       busStopAPIString +=
@@ -271,7 +271,8 @@ export default function Map() {
         data.features[0].center[1] +
         ";" +
         busStopAPIString +
-        "?access_token=" +
+        "?sources=0" +
+        "&access_token=" +
         mapboxgl.accessToken
     ).then(async (response) => {
       const timeArray = await response.json();
