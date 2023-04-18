@@ -5,7 +5,7 @@ import moment from "moment";
 import Instructions from "./Instructions";
 import { resolveConfig } from "prettier";
 
-import {lineString} from '@turf/turf';
+import { lineString } from "@turf/turf";
 
 moment().format();
 
@@ -194,21 +194,17 @@ export default function Map() {
     return description;
   };
 
-  useEffect( () => {
-
+  useEffect(() => {
     Object.entries(busRoutesMap).forEach(([key, value]) => {
-
       let route = [];
 
-      value[0]['polyline'][0].forEach(stop => {
-        route.push([stop['lng'], stop['lat']]);
-      })
+      value[0]["polyline"][0].forEach((stop) => {
+        route.push([stop["lng"], stop["lat"]]);
+      });
 
-      addRoute(key, getRandomDarkColor(), route)
-
-    })
-  }, [busRoutes])
-
+      addRoute(key, getRandomDarkColor(), route);
+    });
+  }, [busRoutes]);
 
   const getRandomDarkColor = () => {
     // Generate random red, green, and blue values between 0 and 128
@@ -221,10 +217,9 @@ export default function Map() {
 
     // Return the hex string
     return "#" + ("000000" + hex).slice(-6);
-  }
+  };
 
   const addRoute = (routeId, color, route) => {
-
     // Remove existing layer and source if it exists
     if (map.current.getLayer(routeId)) {
       map.current.removeLayer(routeId);
@@ -236,58 +231,57 @@ export default function Map() {
     const linestringData = lineString(route);
 
     map.current.addLayer({
-      "id": routeId,
-      "type": "line",
-      "source": {
-        "type": "geojson",
-        "data": linestringData
+      id: routeId,
+      type: "line",
+      source: {
+        type: "geojson",
+        data: linestringData,
       },
-      "layout": {
+      layout: {
         "line-join": "round",
-        "line-cap": "round"
+        "line-cap": "round",
       },
-      "paint": {
+      paint: {
         "line-color": color,
-        "line-width": 5
-      }
-
+        "line-width": 5,
+      },
     });
-  }
+  };
 
   // Effect hook to fetch the bus routes data from the API
   const initializeBusStopAndRouteData = () => {
     fetch(
-        "https://catbus.ridesystems.net/Services/JSONPRelay.svc/GetRoutesForMap"
+      "https://catbus.ridesystems.net/Services/JSONPRelay.svc/GetRoutesForMap"
     )
-        .then((response) => response.json())
-        .then((data) => {
-          setBusRoutes(data);
-          console.log("setBusRoutes: ", data)
-        })
-        .catch((error) => console.error(error));
+      .then((response) => response.json())
+      .then((data) => {
+        setBusRoutes(data);
+        console.log("setBusRoutes: ", data);
+      })
+      .catch((error) => console.error(error));
 
     fetch("https://api-my.app.clemson.edu/api/v0/map/bus/routes")
-        .then((response) => response.json())
-        .then((data) => {
-          setBusStops(data.stops);
-          let map = {};
+      .then((response) => response.json())
+      .then((data) => {
+        setBusStops(data.stops);
+        let map = {};
 
-          Object.entries(data.routes).map(([key, value]) => {
-            value.stops.forEach((stop) => {
-              value["route_id"] = key;
+        Object.entries(data.routes).map(([key, value]) => {
+          value.stops.forEach((stop) => {
+            value["route_id"] = key;
 
-              if (map[stop] == undefined) {
-                map[stop] = [];
-              }
+            if (map[stop] == undefined) {
+              map[stop] = [];
+            }
 
-              map[stop].push(value);
-            });
-
-            setBusRoutesMap(map);
+            map[stop].push(value);
           });
-        })
-        .catch((error) => console.error(error));
-  }
+
+          setBusRoutesMap(map);
+        });
+      })
+      .catch((error) => console.error(error));
+  };
 
   async function getNearestBusStops(data) {
     let distancesFromStartingAddress = [];
@@ -311,15 +305,14 @@ export default function Map() {
       // for (let i = 0; i < Math.min(2, distancesForRoute.length); i++) {
       if (distancesForRoute[0])
         distancesFromStartingAddress.push(distancesForRoute[0]);
-      // if (distancesForRoute[1])
-      //   distancesFromStartingAddress.push(distancesForRoute[1]);
-      // }
+      if (distancesForRoute[1])
+        distancesFromStartingAddress.push(distancesForRoute[1]);
     });
     distancesFromStartingAddress = distancesFromStartingAddress.sort(
       (p1, p2) => p1.dist - p2.dist
     );
     // console.log(distancesFromStartingAddress);
-    distancesFromStartingAddress.splice(10);
+    distancesFromStartingAddress.splice(24);
     let busStopAPIString = "";
     for (let i = 0; i < distancesFromStartingAddress.length; i++) {
       busStopAPIString +=
