@@ -556,7 +556,7 @@ export default function Map() {
             busRoutes[busRouteIndex].Stops[j].AddressID === busStop1.AddressID
           ) {
             while (
-              j < busRoutes[busRouteIndex].Stops.length &&
+              // j < busRoutes[busRouteIndex].Stops.length &&
               busRoutes[busRouteIndex].Stops[j].AddressID !== busStop2.AddressID
             ) {
               let k;
@@ -571,6 +571,9 @@ export default function Map() {
                 ]);
               }
               j += 1;
+              if (j >= busRoutes[busRouteIndex].Stops.length) {
+                j = 0;
+              }
             }
           }
         }
