@@ -243,7 +243,7 @@ export default function Map() {
       },
       paint: {
         "line-color": color,
-        "line-width": 5,
+        "line-width": 2,
       },
     });
   };
