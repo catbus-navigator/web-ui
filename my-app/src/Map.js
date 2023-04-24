@@ -201,16 +201,16 @@ export default function Map() {
       value[0]["polyline"][0].forEach((stop) => {
         route.push([stop["lng"], stop["lat"]]);
       });
-
-      addRoute(key, getRandomDarkColor(), route);
+      // console.log(key, value);
+      addRoute(key, value[0].color, route);
     });
   }, [busRoutes]);
 
   const getRandomDarkColor = () => {
     // Generate random red, green, and blue values between 0 and 128
-    const r = Math.floor(Math.random() * 128);
-    const g = Math.floor(Math.random() * 128);
-    const b = Math.floor(Math.random() * 128);
+    const r = Math.floor(Math.random() * 256);
+    const g = Math.floor(Math.random() * 256);
+    const b = Math.floor(Math.random() * 256);
 
     // Convert the values to a hex string
     const hex = ((r << 16) | (g << 8) | b).toString(16);
