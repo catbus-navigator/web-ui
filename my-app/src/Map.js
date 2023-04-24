@@ -686,8 +686,14 @@ export default function Map() {
 
   return (
     <div className="Map">
-      <div style={{ marginRight: "75%" }}>
-        <form style={{ alignItems: "center", flexDirection: "column" }}>
+      <div style={{ marginRight: "75%" }} id="search">
+        <form
+          style={{
+            alignItems: "center",
+            flexDirection: "column",
+            margin: "10px",
+          }}
+        >
           <label htmlFor="startingAddress">Starting Address: </label>
           <AddressAutofill accessToken={mapboxgl.accessToken}>
             <input
@@ -697,7 +703,13 @@ export default function Map() {
             ></input>
           </AddressAutofill>
         </form>
-        <form style={{ alignItems: "center", flexDirection: "column" }}>
+        <form
+          style={{
+            alignItems: "center",
+            flexDirection: "column",
+            margin: "10px",
+          }}
+        >
           <label htmlFor="endingAddress">Ending Address: </label>
           <AddressAutofill accessToken={mapboxgl.accessToken}>
             <input type="text" id="endingAddress" name="endingAddress"></input>
